@@ -3,15 +3,19 @@ import time
 
 from Gripper import *
 from util import *
+from threading import Thread
             
 rob1 = urx.Robot('10.1.1.6', use_rt=True)
 rob2 = urx.Robot('10.1.1.5', use_rt=True)
 conveyer = Convenor(rob1)
+camera1 = Camera('10.1.1.8')
+camera2 = Camera('10.1.1.7')
 
 v = 0.8
 a = 0.5
 
 useCamera = False
+activateGripper = False
 
 pos = Vec2(float(25/1000), float(-385/10000))
 lastPos = Vec2(pos.x, pos.y)
@@ -19,15 +23,13 @@ lastPos = Vec2(pos.x, pos.y)
 objectLocated = 0
 objectCount = 0
 
-overBlock = 0.25
-atBlock = 0.17
+overBlock = 0.09
+atBlock = 0.0
 
-overConveyer = 0.20
-atConveyer = 0.148
+overConveyer = 0.04
+atConveyer = -0.02
 
-# clearCamera = 0.25, -0.22, 0.20, 0, 3.14, 0
-
-idlePose = Pose(0.25, -0.22, 0.25)
+idlePose = Pose(0.25, -0.22, 0.09)
 placeObject = Vec2(0.3, -0.17)
 conveyerPos = Vec2(-0.012, 0.4)
 
@@ -38,37 +40,8 @@ def move(robot: urx.Robot, location: Pose, moveWait: bool) -> None:
     if moveWait == False:
         time.sleep(0.1)
 
-#Uses camera to locate objects
-def locateObjects() -> Vec2:
-    global objectLocated, switchCounter
-
-    # check for response
-    page = urllib.request.urlopen('http://10.1.1.8/CmdChannel?TRIG')
-    time.sleep(2)
-
-    # Get coords
-    page = urllib.request.urlopen('http://10.1.1.8/CmdChannel?gRES')
-    
-    #reads output from camera
-    coords = page.read().decode('utf-8')
-    
-    print(coords)
-
-    #splits output
-    objectLocated = int(coords.split()[1])
-
-    switchCounter = 0
-
-    x, y = coords.split()[2].split(',')
-
-    pos = Vec2((float(x) + 25) / 1000, (float(y) - 385) / 1000)
-    
-    time.sleep(3)
-
-    return pos
-
 #Moves robot to coordinates set by camera
-def moveObject(fromPos: Vec2, toPos: Vec2, fromTable: bool, toTable: bool) -> None:
+def moveObject(rob: urx.Robot, fromPos: Vec2, toPos: Vec2, fromTable: bool, toTable: bool) -> None:
     global lastPos, objectCount, overBlock, atBlock, overConveyer, atConveyer, idlePose
     objectCount+= 1
 
@@ -112,27 +85,54 @@ def moveObject(fromPos: Vec2, toPos: Vec2, fromTable: bool, toTable: bool) -> No
     time.sleep(0.2)
 
     move(rob, overPlaceObject, True)
-    # Placed object
+
+def initRobot(rob: urx.Robot):
+    #activates gripper. only needed once per power cycle
+    rob.send_program(rq_activate())
+    time.sleep(2.5)
+    #sets speed of gripper to max
+    rob.send_program(rq_set_speed(250))
+    time.sleep(0.1)
+    #sets force of gripper to a low value
+    rob.send_program(rq_set_force(10))
+    time.sleep(0.1)
+    #sets robot tcp, the distance from robot flange to gripper tips. 
+    rob.set_tcp((0,0,0.16,0,0,0))
+
+def rob1Move():
+    global rob1
+    move(rob1, idlePose, True)
+
+    pos = Vec2(0.00773, -0.31881)
+
+    moveObject(rob1, pos, conveyerPos, True, False)
+    move(rob1, idlePose, True)
+    moveObject(rob1, conveyerPos, pos, False, True)
+
+def rob2Move():
+    global rob2
+    move(rob2, idlePose, True)
+
+    pos = Vec2(0.00773, -0.31881)
+
+    moveObject(rob2, pos, conveyerPos, True, False)
+    move(rob2, idlePose, True)
+    moveObject(rob2, conveyerPos, pos, False, True)
 
 
 if __name__ == '__main__':
-    move(rob1, idlePose, True)
+    if activateGripper:    
+        initRobot(rob1)
+        initRobot(rob2)
 
-    # print(conveyer.getDistance(4))
+    rob1Thread = Thread(target=rob1Move)
+    rob2Thread = Thread(target=rob2Move)
 
-    if useCamera:
-        pos = locateObjects()
-        time.sleep(5)
-    else: 
-        pos = Vec2(0.00773, -0.31881)
+    rob1Thread.start()
+    rob2Thread.start()
 
-    moveObject(pos, conveyerPos, True, False)
-
-    # print(conveyer.getDistance(4))
-
-    move(rob1, idlePose, True)
-
-    moveObject(conveyerPos, pos, False, True)
+    rob1Thread.join()
+    rob2Thread.join()
 
     rob1.close()
     rob2.close()

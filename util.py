@@ -1,6 +1,7 @@
 import time
 import urx
 import requests
+import urllib.request
 
 from dataclasses import dataclass
 from typing import List
@@ -89,3 +90,35 @@ class Convenor:
         self.rob.send_program("set_analog_outputdomain(1, 1)")
         #sets analog out 1 to desired voltage. 0.012 is the slowest speed.
         self.rob.set_analog_out(1, voltage)
+
+class Camera:
+    def __init__(self, ip: str) -> None:
+        self.ip = ip
+    
+    def locateObject(self) -> Vec2:
+        global objectLocated, switchCounter
+
+        # check for response
+        page = urllib.request.urlopen(f'http://{self.ip}/CmdChannel?TRIG')
+        time.sleep(2)
+
+        # Get coords
+        page = urllib.request.urlopen(f'http://{self.ip}/CmdChannel?gRES')
+
+        #reads output from camera
+        coords = page.read().decode('utf-8')
+
+        print(coords)
+
+        #splits output
+        objectLocated = int(coords.split()[1])
+
+        switchCounter = 0
+
+        x, y = coords.split()[2].split(',')
+
+        pos = Vec2((float(x) + 25) / 1000, (float(y) - 385) / 1000)
+
+        time.sleep(3)
+
+        return pos
