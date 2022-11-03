@@ -11,11 +11,25 @@ conveyer = Convenor(rob1)
 camera1 = Camera('10.1.1.8')
 camera2 = Camera('10.1.1.7')
 
+rob1Cords = {
+    'conveyer': Vec3(-0.012, 0.4, -0.02),
+    'idlePose': Vec3(0.25, -0.22, 0.09),
+    'getObject': Vec3(0.00773, -0.31881, 0.0),
+    'placeObject': Vec3(0.3, -0.17, 0.0),
+}
+
+rob2Cords = {
+    'conveyer': Vec3(-0.012, 0.4, -0.02),
+    'idlePose': Vec3(-0.25, -0.22, 0.09),
+    'getObject': Vec3(0.00773, -0.31881, 0.0),
+    'placeObject': Vec3(0.3, -0.17, 0.0),
+}
+
 v = 0.8
 a = 0.5
 
 useCamera = False
-activateGripper = False
+activateGripper = True
 
 pos = Vec2(float(25/1000), float(-385/10000))
 lastPos = Vec2(pos.x, pos.y)
@@ -41,31 +55,30 @@ def move(rob: urx.Robot, location: Pose, moveWait: bool) -> None:
         time.sleep(0.1)
 
 #Moves robot to coordinates set by camera
-def moveObject(rob: urx.Robot, fromPos: Vec2, toPos: Vec2, fromTable: bool, toTable: bool) -> None:
-    global lastPos, objectCount, overBlock, atBlock, overConveyer, atConveyer, idlePose
+def moveObject(rob: urx.Robot, fromPos: Vec3, toPos: Vec3, name: str) -> None:
+    global lastPos, objectCount, overConveyer, atConveyer, rob1Cords, rob2Cords
     objectCount+= 1
 
-    lastPos = Vec2(fromPos.x, fromPos.y)
+    if name == 'rob1':
+        idlePose = rob1Cords['idlePose']
+    elif name == 'rob2':
+        idlePose = rob2Cords['idlePose']
 
-    if fromTable:
-        overPickPos = Pose(fromPos.x, fromPos.y, overBlock)
-        pickPos = Pose(fromPos.x, fromPos.y, atBlock)
-    else:
-        overPickPos = Pose(fromPos.x, fromPos.y, overConveyer)
-        pickPos = Pose(fromPos.x, fromPos.y, atConveyer)
+    idlePose = Pose(idlePose.x, idlePose.y, idlePose.z)
 
-    if toTable:
-        overPlaceObject = Pose(toPos.x, toPos.y, overBlock)
-        placeObject = Pose(toPos.x, toPos.y, atBlock)
-    else:
-        overPlaceObject = Pose(toPos.x, toPos.y, overConveyer)
-        placeObject = Pose(toPos.x, toPos.y, atConveyer)
-    
+    overBlock = Vec3(0.0, 0.0, 0.09)
+
     rob.send_program(rq_open())
     time.sleep(0.1)
 
-    move(rob, overPickPos, True)
-    move(rob, pickPos, True)
+    fromPos = Pose(fromPos.x, fromPos.y, fromPos.z)
+    toPos = Pose(toPos.x, toPos.y, toPos.z)
+
+    print(f'{name}: move above pick up = {fromPos + overBlock}')
+    move(rob, fromPos + overBlock, True)
+
+    print(f'{name}: move to pick up = {fromPos}')
+    move(rob, fromPos, True)
     
     #closes gripper
     rob.send_program(rq_close())
@@ -73,18 +86,24 @@ def moveObject(rob: urx.Robot, fromPos: Vec2, toPos: Vec2, fromTable: bool, toTa
     #sleep to allow gripper to close fully before program resumes
     time.sleep(0.6)
     
-    move(rob, overPickPos, True)
+    print(f'{name}: move above pick up = {fromPos + overBlock}')
+    move(rob, fromPos + overBlock, True)
     # Object picked up
 
+    print(f'{name}: move to idle pos = {idlePose}')
     move(rob, idlePose, True)
 
-    move(rob, overPlaceObject, True)
-    move(rob, placeObject, True)
+    print(f'{name}: move above place = {toPos + overBlock}')
+    move(rob, toPos + overBlock, True)
+
+    print(f'{name}: move to place = {toPos}')
+    move(rob, toPos, True)
     
     rob.send_program(rq_open())
     time.sleep(0.2)
 
-    move(rob, overPlaceObject, True)
+    print(f'{name}: move above place = {toPos + overBlock}')
+    move(rob, toPos + overBlock, True)
 
 def initRobot(rob: urx.Robot):
     #activates gripper. only needed once per power cycle
@@ -100,25 +119,45 @@ def initRobot(rob: urx.Robot):
     rob.set_tcp((0,0,0.16,0,0,0))
 
 def rob1Move():
-    global rob1
-    move(rob1, idlePose, True)
+    global rob1, camera1, rob1Cords
+    name = 'rob1'
 
-    pos = Vec2(0.00773, -0.31881)
+    print(f'{name}: move to idle pos = {idlePose}')
+    move(rob1, rob1Cords['idlePose'].toPose(), True)
 
-    moveObject(rob1, pos, conveyerPos, True, False)
-    move(rob1, idlePose, True)
-    moveObject(rob1, conveyerPos, pos, False, True)
+    moveObject(rob1, rob1Cords['getObject'], rob1Cords['conveyer'], name)
+    
+    print(f'{name}: move to idle pos = {idlePose}')
+    move(rob1, rob1Cords['idlePose'].toPose(), True)
+
+    rob1Cords['getObject'].z = 0.002 # temp fix
+
+    moveObject(rob1, rob1Cords['conveyer'], rob1Cords['getObject'], name)
+
+    move(rob1, rob1Cords['idlePose'].toPose(), True)
 
 def rob2Move():
-    global rob2
-    move(rob2, idlePose, True)
+    global rob2, camera2, rob2Cords
+    name = 'rob2'
 
-    pos = Vec2(0.00773, -0.31881)
+    print(f'{name}: move to idle pos = {idlePose}')
+    move(rob2, rob2Cords['idlePose'].toPose(), True)
 
-    moveObject(rob2, pos, conveyerPos, True, False)
-    move(rob2, idlePose, True)
-    moveObject(rob2, conveyerPos, pos, False, True)
+    # objectPos = camera2.locateObject()
 
+    # objectPos = Vec3(objectPos.x, objectPos.y, 0.0)
+
+    moveObject(rob2, rob2Cords['getObject'], rob2Cords['conveyer'], name)
+    
+    print(f'{name}: move to idle pos = {idlePose}')
+    move(rob2, rob2Cords['idlePose'].toPose(), True)
+    
+    moveObject(rob2, rob2Cords['conveyer'], rob2Cords['getObject'], name)
+
+    move(rob2, rob2Cords['idlePose'].toPose(), True)
+
+def emptyFunc():
+    pass
 
 if __name__ == '__main__':
     if activateGripper:    

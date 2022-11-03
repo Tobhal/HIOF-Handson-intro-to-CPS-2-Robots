@@ -1,4 +1,5 @@
 import time
+from typing_extensions import Self
 import urx
 import requests
 import urllib.request
@@ -11,11 +12,23 @@ class Vec2:
     x: float
     y: float
 
+    def __add__(self, other):
+        return Vec2(self.x + other.x, self.y + other.y)
+
+    def toPose(self):
+        return Pose(self.x, self.y, 0.0)
+
 @dataclass
 class Vec3:
     x: float
     y: float
     z: float
+
+    def __add__(self, other):
+        return Vec3(self.x + other.x, self.y + other.y, self.z + other.z)
+
+    def toPose(self):
+        return Pose(self.x, self.y, self.z)
 
 @dataclass
 class Pose:
@@ -30,15 +43,12 @@ class Pose:
         return (self.x, self.y, self.z, self.rx, self.ry, self.rz)
 
     def __add__(self, other):
-        if other is type(Vec2):
-            self.x + other.x
-            self.y + other.y
-        elif other is type(Vec3):
-            self.x + other.x
-            self.y + other.y
-            self.z + other.z
-        elif other is type(Pose):
-            self.__add__(other)
+        if type(other) is Vec2:
+            return Pose(self.x + other.x, self.y + other.y, 0.0)
+        elif type(other) in [Vec3, Pose] :
+            return Pose(self.x + other.x, self.y + other.y, self.z + other.z)
+
+        return Pose(0.0, 0.0, 0.0)
 
 class Convenor:
     def __init__(self, rob: urx.Robot) -> None:
@@ -111,14 +121,20 @@ class Camera:
         print(coords)
 
         #splits output
-        objectLocated = int(coords.split()[1])
+        # objectLocated = int(coords.split()[2])
 
         switchCounter = 0
 
-        x, y = coords.split()[2].split(',')
+        print(coords.split()[2])
+        _, _, _, x, y = coords.split()[2].split(',')
 
         pos = Vec2((float(x) + 25) / 1000, (float(y) - 385) / 1000)
 
         time.sleep(3)
 
         return pos
+
+if __name__ == '__main__':
+    pose = Pose(1,2,3)
+
+    print(pose + Vec3(0,0,4))
