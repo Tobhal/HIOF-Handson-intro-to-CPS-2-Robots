@@ -34,10 +34,10 @@ placeObject = Vec2(0.3, -0.17)
 conveyerPos = Vec2(-0.012, 0.4)
 
 #function for moving robot using moveJ
-def move(robot: urx.Robot, location: Pose, moveWait: bool) -> None:
+def move(rob: urx.Robot, location: Pose, moveWait: bool) -> None:
     #moves robot
-    robot.movex("movej", location.toTuple(), acc=a, vel=v, wait=moveWait, relative=False, threshold=None)
-    if moveWait == False:
+    rob.movex("movej", location.toTuple(), acc=a, vel=v, wait=moveWait, relative=False, threshold=None)
+    if not moveWait:
         time.sleep(0.1)
 
 #Moves robot to coordinates set by camera
