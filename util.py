@@ -6,6 +6,7 @@ import urllib.request
 
 from dataclasses import dataclass
 from typing import List
+from enum import Enum
 
 @dataclass
 class Vec2:
@@ -35,20 +36,29 @@ class Pose:
     x: float
     y: float
     z: float
-    rx = 0.0
-    ry = 3.14
-    rz = 0
+    rx: float
+    ry: float
+    rz: float
+
+    def __init__(self, x, y, z, rx = 0.0, ry = 3.14, rz = 0.0):
+        self.x = x
+        self.y = y
+        self.z = z
+
+        self.rx = rx
+        self.ry = ry
+        self.rz = rz
 
     def toTuple(self) -> List:
         return (self.x, self.y, self.z, self.rx, self.ry, self.rz)
 
     def __add__(self, other):
         if type(other) is Vec2:
-            return Pose(self.x + other.x, self.y + other.y, 0.0)
+            return Pose(self.x + other.x, self.y + other.y, 0.0, rx=self.rx, ry=self.ry, rz=self.rz)
         elif type(other) in [Vec3, Pose] :
-            return Pose(self.x + other.x, self.y + other.y, self.z + other.z)
+            return Pose(self.x + other.x, self.y + other.y, self.z + other.z, rx=self.rx, ry=self.ry, rz=self.rz)
 
-        return Pose(0.0, 0.0, 0.0)
+        return Pose(0.0, 0.0, 0.0, rx=self.rx, ry=self.ry, rz=self.rz)
 
 class Convenor:
     def __init__(self, rob: urx.Robot) -> None:
@@ -60,7 +70,7 @@ class Convenor:
         res = r.json()
         res1 = res['data']
         data = str(res1)
-        print(res)
+        # print(res)
         if data[53] == "2":
             d = data[68]+data[69]
             return int(d,16)
@@ -134,7 +144,13 @@ class Camera:
 
         return pos
 
-if __name__ == '__main__':
-    pose = Pose(1,2,3)
+class RobotPickUp(Enum):
+    NONE = 0
+    R1 = 1
+    R2 = 2
 
-    print(pose + Vec3(0,0,4))
+if __name__ == '__main__':
+    pos = Pose(1,2,3, rx=1)
+    print(pos)
+
+    pass
