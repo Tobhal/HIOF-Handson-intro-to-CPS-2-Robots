@@ -98,17 +98,30 @@ class Camera:
         return pos
 
 class RobotPickUp(Enum):
-    NONE = 0
-    R1 = 1
-    R2 = 2
+    NONE = ""
+    R1 = "rob1"
+    R2 = "rob2"
+
+    def flip(state) -> str:
+        if state == RobotPickUp.R1:
+            return RobotPickUp.R2
+        elif state == RobotPickUp.R2:
+            return RobotPickUp.R1
 
 class Object(Enum):
     CUBE = 0
     CYLINDER = 1
 
+class Status(Enum):
+    NOT_READY = 0
+    READY = 1
+    MOVING = 2
+
 class Robot(urx.Robot):
     a = 0.5
     v = 0.8
+
+    status = Status.NOT_READY
 
     def __init__(self, host: str, name: str, cords: dict, use_rt=False, use_simulation=False):
         super().__init__(host, use_rt, use_simulation)
@@ -126,6 +139,8 @@ class Robot(urx.Robot):
         time.sleep(0.1)
         #sets robot tcp, the distance from robot flange to gripper tips. 
         self.set_tcp((0,0,0.16,0,0,0))
+
+        self.status = Status.READY
 
     def pickObject(self, location: Pose, object = Object.CUBE):
         """
@@ -172,14 +187,14 @@ class Robot(urx.Robot):
         self.move(location + self.cords[object]['over'])
         self.move(location + self.cords[object]['at'])
 
-        self.send_program(rq_open)
+        self.send_program(rq_open())
         time.sleep(0.1)
 
         location.rx = 2.2
         location.ry = 2.2
 
         self.move(location + self.cords[object]['at'])
-        self.send_program(rq_close)
+        self.send_program(rq_close())
 
         self.move(location + self.cords[object]['over'])
 
@@ -206,6 +221,7 @@ class Robot(urx.Robot):
         """
         self.pickObject(fromPos, object)
         
+        self.cords['idlePose'] = Pose(self.cords['idlePose'].x, self.cords['idlePose'].y, self.cords['idlePose'].z)
         self.move(self.cords['idlePose'])
 
         self.placeObject(toPos, object)
@@ -215,23 +231,27 @@ class Robot(urx.Robot):
         Moves object form `pickPos` to the `conveyor` position. 
         Default to `CUBE` object
         """
-        self.moveObject(pickPos, self.cords['conveyor'], object)
+        self.moveObject(pickPos, self.cords['conveyor'] + Vec3(0.0, 0.0, 0.001), object)
 
     def moveObjectFromConveyor(self, object = Object.CUBE): 
         """
         Move object from conveyor to table
         """
-        self.moveObject(self.cords['conveyor'], self.cords['object']['place'], object)
+        self.moveObject(self.cords['conveyor'], self.cords['object']['get'], object)
 
 class Conveyor:
     """
     Static class for handling the conveyor.
     """
-    rob = Robot('10.1.1.5', 'rob2Conveyor', dict())
+    # rob = Robot('10.1.1.5', 'rob2Conveyor', dict())
     mainSpeed = 0.13
     stopSpeed = 0.025
-    waitTime = 1
-    waitAfterDetect = 5
+
+    waitTime = 1.1
+
+    waitAfterDetectLeft = 5
+    waitAfterDetectRight = 5.3
+
     distToWall = 50
 
     @staticmethod
@@ -252,47 +272,47 @@ class Conveyor:
             return None
 
     @staticmethod
-    def start_right(self):
+    def start_right(rob: Robot):
         """
         Moves the conveyor to the right
         """
-        self.rob.set_digital_out(5, 1)
+        rob.set_digital_out(5, 1)
         #allow digital out 5 to stay active for 0.1s
         time.sleep(0.1)
         #set digital out back to 0
-        self.rob.set_digital_out(5, 0)
+        rob.set_digital_out(5, 0)
 
     @staticmethod
-    def start_left(self):
+    def start_left(rob: Robot):
         """
         Moves the conveyor to the left
         """
-        self.rob.set_digital_out(6, 1)
+        rob.set_digital_out(6, 1)
         #allow digital out 6 to stay active for 0.1s
         time.sleep(0.1)
         #set digital out back to 0
-        self.rob.set_digital_out(6, 0)
+        rob.set_digital_out(6, 0)
 
     @staticmethod
-    def stop(self):
+    def stop(rob: Robot):
         """
         Stops the conveyor.
         """
-        self.rob.set_digital_out(7, 1)
+        rob.set_digital_out(7, 1)
         #allow digital out 7 to stay active for 0.1s
         time.sleep(0.1)
         #set digital out back to 0
-        self.rob.set_digital_out(7, 0)
+        rob.set_digital_out(7, 0)
 
     @staticmethod
-    def setSpeed(self, voltage: float):
+    def setSpeed(rob: Robot, voltage: float):
         """
         Sets the speed of the conveyor. The speed is given in voltage
         """
         #sets analog out to voltage instead of current
-        self.rob.send_program("set_analog_outputdomain(1, 1)")
+        rob.send_program("set_analog_outputdomain(1, 1)")
         #sets analog out 1 to desired voltage. 0.012 is the slowest speed.
-        self.rob.set_analog_out(1, voltage)
+        rob.set_analog_out(1, voltage)
 
     @staticmethod
     def blockForDetectObject(sensor: int, compare = operator.gt):
