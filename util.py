@@ -47,7 +47,7 @@ class Pose(Vec3):
         self.rz = rz
 
     def toTuple(self) -> List:
-        return (self.x, self.y, self.z, self.rx, self.ry, self.rz)
+        return self.x, self.y, self.z, self.rx, self.ry, self.rz
 
     def __add__(self, other):
         if type(other) is Vec2:
@@ -65,12 +65,10 @@ class Pose(Vec3):
             )
 
 class Camera:
-    def __init__(self, ip: str) -> None:
+    def __init__(self, ip: str):
         self.ip = ip
     
     def locateObject(self) -> Vec2:
-        global objectLocated, switchCounter
-
         # check for response
         page = urllib.request.urlopen(f'http://{self.ip}/CmdChannel?TRIG')
         time.sleep(2)
@@ -86,8 +84,6 @@ class Camera:
         #splits output
         # objectLocated = int(coords.split()[2])
 
-        switchCounter = 0
-
         print(coords.split()[2])
         _, _, _, x, y = coords.split()[2].split(',')
 
@@ -102,11 +98,9 @@ class RobotPickUp(Enum):
     R1 = "rob1"
     R2 = "rob2"
 
+    @staticmethod
     def flip(state) -> str:
-        if state == RobotPickUp.R1:
-            return RobotPickUp.R2
-        elif state == RobotPickUp.R2:
-            return RobotPickUp.R1
+        return RobotPickUp.R2 if state == RobotPickUp.R1 else RobotPickUp.R1
 
 class Object(Enum):
     CUBE = 0
@@ -198,8 +192,6 @@ class Robot(urx.Robot):
 
         self.move(location + self.cords[object]['over'])
 
-        pass
-
     def move(self, location: Pose, moveWait = True):
         """
         Function for moving robot using moveJ
@@ -221,7 +213,6 @@ class Robot(urx.Robot):
         """
         self.pickObject(fromPos, object)
         
-        self.cords['idlePose'] = Pose(self.cords['idlePose'].x, self.cords['idlePose'].y, self.cords['idlePose'].z)
         self.move(self.cords['idlePose'])
 
         self.placeObject(toPos, object)
@@ -243,7 +234,6 @@ class Conveyor:
     """
     Static class for handling the conveyor.
     """
-    # rob = Robot('10.1.1.5', 'rob2Conveyor', dict())
     mainSpeed = 0.13
     stopSpeed = 0.025
 
