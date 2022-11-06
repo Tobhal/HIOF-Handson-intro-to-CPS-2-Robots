@@ -2,6 +2,7 @@ import time
 import urx
 import requests
 import urllib.request
+import operator
 
 from Gripper import *
 from dataclasses import dataclass
@@ -126,11 +127,71 @@ class Robot(urx.Robot):
         #sets robot tcp, the distance from robot flange to gripper tips. 
         self.set_tcp((0,0,0.16,0,0,0))
 
-    def move(self, location: Pose, moveWait: bool):
+    def pickObject(self, location: Pose, object = Object.CUBE):
+        """
+        Pick up a object at a location.
+        Default to `CUBE` object
+        """
+        self.send_program(rq_open())
+        time.sleep(0.1)
+
+        print(f'{self.name}: move above pick up = {location}')
+        self.move(location + self.cords[object]['over'])
+
+        self.move(location + self.cords[object]['at'])
+        self.send_program(rq_close())
+        time.sleep(0.6)
+
+        self.move(location + self.cords[object]['over'])
+
+    def placeObject(self, location: Pose, object = Object.CUBE):
+        """
+        Place a object at a location.
+        Default to `CUBE` object
+        """
+        print(f'{self.name}: move above place = {location}')
+        self.move(location + self.cords[object]['over'])
+
+        self.move(location + self.cords[object]['at'])
+
+        self.send_program(rq_open())
+        time.sleep(0.1)
+
+        self.move(location + self.cords[object]['over'])
+
+    def centerObject(self, location: Pose, object = Object.CUBE):
+        """
+        Center the object in the TCP. Grabs the object at one location, TCP rotates 90 deg and grabs again.
+        Uses the location for the centring
+        Default to `CUBE` object
+        """
+        print(f'{self.name}: center object at = {location}')
+        location.rx = 0.0
+        location.ry = 0.0
+
+        self.move(location + self.cords[object]['over'])
+        self.move(location + self.cords[object]['at'])
+
+        self.send_program(rq_open)
+        time.sleep(0.1)
+
+        location.rx = 2.2
+        location.ry = 2.2
+
+        self.move(location + self.cords[object]['at'])
+        self.send_program(rq_close)
+
+        self.move(location + self.cords[object]['over'])
+
+        pass
+
+    def move(self, location: Pose, moveWait = True):
         """
         Function for moving robot using moveJ
         """
-        if type(location) == Vec3:
+        if type(location) == Vec2:
+            location = location.toPose()
+        elif type(location) == Vec3:
             location = location.toPose()
         
         #moves robot
@@ -138,83 +199,51 @@ class Robot(urx.Robot):
         if moveWait:
             time.sleep(0.1)
 
-    def moveObject(self, fromPos: Vec3, toPos: Vec3, object: Object = Object.CUBE):
+    def moveObject(self, fromPos: Vec3, toPos: Vec3, object = Object.CUBE):
         """
-        Move object from position to position. Leaves the robot above the object
+        Move object from position to position. Leaves the robot above the object.
+        Default to `CUBE` object
         """
-        overBlock = Vec3(0.0, 0.0, 0.09)
-
-        self.send_program(rq_open())
-        time.sleep(0.1)
-
-        print(f'{self.name}: move above pick up = {fromPos + overBlock}')
-        self.move(fromPos + overBlock, True)
-
-        print(f'{self.name}: move to pick up = {fromPos}')
-        self.move(fromPos, True)
+        self.pickObject(fromPos, object)
         
-        #closes gripper
-        self.send_program(rq_close())
-        
-        #sleep to allow gripper to close fully before program resumes
-        time.sleep(0.6)
-        
-        print(f'{self.name}: move above pick up = {fromPos + overBlock}')
-        self.move(fromPos + overBlock, True)
-        # Object picked up
+        self.move(self.cords['idlePose'])
 
-        print(f'{self.name}: move to idle pos = {self.cords["idlePose"]}')
-        self.move(self.cords["idlePose"], True)
-
-        print(f'{self.name}: move above place = {toPos + overBlock}')
-        self.move(toPos + overBlock, True)
-
-        print(f'{self.name}: move to place = {toPos}')
-        self.move(toPos + Vec3(0.0, 0.0, 0.004), True)
-        
-        self.send_program(rq_open())
-        time.sleep(0.2)
-
-        print(f'{self.name}: move above place = {toPos + overBlock}')
-        self.move(toPos + overBlock, True)
+        self.placeObject(toPos, object)
 
     def moveObjectToConveyor(self, pickPos: Vec2, object = Object.CUBE):
-        print(f'{self.name}: move to idle pos = {self.cords["idlePose"]}')
-        self.move(self.cords['idlePose'], True)
+        """
+        Moves object form `pickPos` to the `conveyor` position. 
+        Default to `CUBE` object
+        """
+        self.moveObject(pickPos, self.cords['conveyor'], object)
 
-        self.moveObject(pickPos, self.cords['conveyor'])
-
-        time.sleep(5)
-
-        print(f'{self.name}: move to idle pos = {self.cords["idlePose"]}')
-        self.move(self.cords['idlePose'], True)
-
-    def moveObjectFromConveyor(self): 
-        # Pick up object
-        print(f'{self.name} moving to pick up object')
-        self.moveObject(self.cords['conveyor'], self.cords['getObject'])
-
-        print(f'{self.name} move to idle pose')
-        self.move(self.cords['idlePose'], True)
+    def moveObjectFromConveyor(self, object = Object.CUBE): 
+        """
+        Move object from conveyor to table
+        """
+        self.moveObject(self.cords['conveyor'], self.cords['object']['place'], object)
 
 class Conveyor:
-    # rob = Robot('10.1.1.5', 'rob2Conveyor', dict())
+    """
+    Static class for handling the conveyor.
+    """
+    rob = Robot('10.1.1.5', 'rob2Conveyor', dict())
     mainSpeed = 0.13
     stopSpeed = 0.025
     waitTime = 1
     waitAfterDetect = 5
-
-    def __init__(self, rob: urx.Robot) -> None:
-        self.rob = rob
+    distToWall = 50
 
     @staticmethod
-    def getDistance(camera: int) -> float:
-        #change port[n] to change sensor. 1 is closest to the door, 4 is furthest away fromthe door
-        r = requests.post('http://10.1.1.9', json={"code":"request","cid":1,"adr":"/getdatamulti","data":{"datatosend":[f"/iolinkmaster/port[{camera}]/iolinkdevice/pdin"]}})
+    def getDistance(sensor: int) -> float:
+        """
+        Change port[n] to change sensor. 1 is closest to the door, 4 is furthest away from the door
+        """
+        r = requests.post('http://10.1.1.9', json={"code":"request","cid":1,"adr":"/getdatamulti","data":{"datatosend":[f"/iolinkmaster/port[{sensor}]/iolinkdevice/pdin"]}})
         res = r.json()
         res1 = res['data']
         data = str(res1)
-        # print(res)
+
         if data[53] == "2":
             d = data[68]+data[69]
             return int(d,16)
@@ -223,41 +252,57 @@ class Conveyor:
             return None
 
     @staticmethod
-    def start(self):
-        #start coveyor
+    def start_right(self):
+        """
+        Moves the conveyor to the right
+        """
         self.rob.set_digital_out(5, 1)
         #allow digital out 5 to stay active for 0.1s
         time.sleep(0.1)
         #set digital out back to 0
         self.rob.set_digital_out(5, 0)
-        #conveyor started
 
     @staticmethod
-    def stop(self):
-        #stop conveyor
-        self.rob.set_digital_out(7, 1)
-        #allow digital out 7 to stay active for 0.1s
-        time.sleep(0.1)
-        #set digital out back to 0
-        self.rob.set_digital_out(7, 0)
-        #conveyor stopped
-
-    @staticmethod
-    def reverse(self):
-        #start coveyor in reverse direction
+    def start_left(self):
+        """
+        Moves the conveyor to the left
+        """
         self.rob.set_digital_out(6, 1)
         #allow digital out 6 to stay active for 0.1s
         time.sleep(0.1)
         #set digital out back to 0
         self.rob.set_digital_out(6, 0)
-        #conveyor started in reverse direction
 
     @staticmethod
-    def setSpeed(self, voltage):
+    def stop(self):
+        """
+        Stops the conveyor.
+        """
+        self.rob.set_digital_out(7, 1)
+        #allow digital out 7 to stay active for 0.1s
+        time.sleep(0.1)
+        #set digital out back to 0
+        self.rob.set_digital_out(7, 0)
+
+    @staticmethod
+    def setSpeed(self, voltage: float):
+        """
+        Sets the speed of the conveyor. The speed is given in voltage
+        """
         #sets analog out to voltage instead of current
         self.rob.send_program("set_analog_outputdomain(1, 1)")
         #sets analog out 1 to desired voltage. 0.012 is the slowest speed.
         self.rob.set_analog_out(1, voltage)
+
+    @staticmethod
+    def blockForDetectObject(sensor: int, compare = operator.gt):
+        """
+        Blocks the thread while waiting for something to move past the given sensor.
+        operator.gt = >
+        operator.lt = <
+        """
+        while compare(Conveyor.getDistance(sensor), Conveyor.distToWall):
+            pass
 
 if __name__ == '__main__':
     pass

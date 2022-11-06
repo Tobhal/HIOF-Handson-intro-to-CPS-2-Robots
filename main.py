@@ -8,8 +8,13 @@ camera1 = Camera('10.1.1.8')
 camera2 = Camera('10.1.1.7')
 
 block = {
-    'over': 0.9,
-    'at': 0.0
+    'over': Vec3(0.0, 0.0, 0.9),
+    'at': Vec3(0.0, 0.0, 0.0)
+}
+
+cylinder = {    # TODO: Change to correct measurements
+    'over': Vec3(0.0, 0.0, 0.9),
+    'at': Vec3(0.0, 0.0, 0.0)
 }
 
 rob1Cords = {
@@ -19,7 +24,8 @@ rob1Cords = {
         'get': Vec3(0.00773, -0.31881, 0.0),
         'place': Vec3(0.3, -0.17, 0.0)
     },
-    'block': block
+    Object.CUBE: block,
+    Object.CYLINDER: cylinder
 }
 
 rob2Cords = {
@@ -29,7 +35,8 @@ rob2Cords = {
         'get': Vec3(0.00773, -0.31881, 0.0),
         'place': Vec3(0.3, -0.17, 0.0),
     },
-    'block': block
+    Object.CUBE: block,
+    Object.CYLINDER: cylinder
 }
 
 rob1 = Robot('10.1.1.6', 'rob1', rob1Cords, use_rt=True)
@@ -49,23 +56,23 @@ def rob1Move():
     global rob1, camera1
 
     print(f'{rob1.name}: move to idle pos = {rob1.cords["idlePose"]}')
-    rob1.move(rob1.cords['idlePose'], True)
+    rob1.move(rob1.cords['idlePose'])
 
-    rob1.moveObject(rob1.cords['getObject'], rob1.cords['conveyor'])
+    rob1.moveObject(rob1.cords['object']['get'], rob1.cords['conveyor'])
     
     print(f'{rob1.name}: move to idle pos = {rob1.cords["idlePose"]}')
-    rob1.move(rob1.cords['idlePose'], True)
+    rob1.move(rob1.cords['idlePose'])
 
-    rob1.cords['getObject'].z = 0.002 # temp fix
+    rob1.cords['object']['get'].z = 0.002 # temp fix
 
-    rob1.moveObject(rob1.cords['conveyor'], rob1.cords['getObject'])
+    rob1.moveObject(rob1.cords['conveyor'], rob1.cords['object']['get'])
 
-    rob1.move(rob1.cords['idlePose'], True)
+    rob1.move(rob1.cords['idlePose'])
 
 def rob1Move2():
     global rob1, camera1, objectPickUp, objectMove
 
-    rob1.move(rob1.cords['idlePose'], True)
+    rob1.move(rob1.cords['idlePose'])
 
     while not terminationCondition:
         if objectPickUp == RobotPickUp.R1:
@@ -79,23 +86,23 @@ def rob1Move2():
 def rob2Move():
     global rob2, camera2
     print(f'{rob2.name}: move to idle pos = {rob2.cords["idlePose"]}')
-    rob2.move(rob2.cords['idlePose'], True)
+    rob2.move(rob2.cords['idlePose'])
 
-    rob2.moveObject(rob2.cords['getObject'], rob2.cords['conveyor'])
+    rob2.moveObject(rob2.cords['object']['get'], rob2.cords['conveyor'])
     
     print(f'{rob2.name}: move to idle pos = {rob2.cords["idlePose"]}')
-    rob2.move(rob2.cords['idlePose'], True)
+    rob2.move(rob2.cords['idlePose'])
 
-    rob2.cords['getObject'].z = 0.002 # temp fix
+    rob2.cords['object']['get'].z = 0.002 # temp fix
 
-    rob2.moveObject(rob2.cords['conveyor'], rob2.cords['getObject'])
+    rob2.moveObject(rob2.cords['conveyor'], rob2.cords['object']['get'])
 
-    rob2.move(rob2.cords['idlePose'], True)
+    rob2.move(rob2.cords['idlePose'])
 
 def rob2Move2():
     global rob2, camera2, objectPickUp, objectMove
 
-    rob2.move(rob2, rob2Cords['idlePose'], True)
+    rob2.move(rob2, rob2Cords['idlePose'])
 
     while not terminationCondition:
         if objectPickUp == RobotPickUp.R2:
@@ -108,84 +115,69 @@ def rob2Move2():
 
 def move(rob: Robot, camera: Camera):
     print(f'{rob.name}: move to idle pos = {rob.cords["idlePose"]}')
-    rob.move(rob.cords["idlePose"], True)
+    rob.move(rob.cords['idlePose'])
 
-    rob.moveObject(rob.cords["getObject"], rob.cords["conveyor"])
+    rob.moveObject(rob.cords['object']['get'], rob.cords['conveyor'])
 
     print(f'{rob.name}: move to idle pos = {rob.cords["idlePose"]}')
-    rob.move(rob.cords["idlePose"], True)
+    rob.move(rob.cords['idlePose'])
 
-    rob.moveObject(rob.cords['conveyor'], rob.cords['getObject'])
+    rob.moveObject(rob.cords['conveyor'], rob.cords['object']['get'])
 
-    rob.move(rob.cords['idlePose'], True)
-
+    rob.move(rob.cords['idlePose'])
 
 # Main conveyor move code
 def conveyorMove():
     global objectPickUp, endProgram
 
     while not terminationCondition:
-        conveyorDirRight = True
-
         objectPickUp = RobotPickUp.NONE
 
         if Conveyor.getDistance(4) < 50:
             print(f'conveyor moving right')
             time.sleep(Conveyor.waitTime)
 
-            if conveyorDirRight != True:
-                conveyorDirRight = True
-
             Conveyor.setSpeed(Conveyor.mainSpeed)
-            Conveyor.start()
+            Conveyor.start_right()
 
-            while Conveyor.getDistance(2) > 50:
-                # Wait for object to move to the second sensor before reducing the speed
-                pass
+            # Wait for object to move to the second sensor before reducing the speed
+            Conveyor.blockForDetectObject(2)
 
             time.sleep(Conveyor.waitAfterDetect)
 
             Conveyor.setSpeed(Conveyor.stopSpeed)
 
-            while Conveyor.getDistance(1) > 50:
-                # Wait for object to get to first sensor before stopping
-                pass
+            # Wait for object to get to first sensor before stopping
+            Conveyor.blockForDetectObject(1)
 
             Conveyor.stop()
             objectPickUp = RobotPickUp.R2
 
-            while Conveyor.getDistance(1) < 50:
-                # Wait for object to be picked up
-                pass
+            # Wait for object to be picked up
+            Conveyor.blockForDetectObject(1, operator.lt)
 
         elif Conveyor.getDistance(1) < 50:
             print(f'conveyor moving left')
             time.sleep(Conveyor.waitTime)
 
-            if conveyorDirRight != False:
-                conveyorDirRight = False
-
             Conveyor.setSpeed(Conveyor.mainSpeed)
-            Conveyor.reverse()
+            Conveyor.start_left()
 
-            while Conveyor.getDistance(3) > 50:
-                # Wait for object to move to the third sensor before reducing the speed
-                pass
+            # Wait for object to move to the third sensor before reducing the speed
+            Conveyor.blockForDetectObject(3)
 
             time.sleep(Conveyor.waitAfterDetect)
             
             Conveyor.setSpeed(Conveyor.stopSpeed)
 
-            while Conveyor.getDistance(4) > 50:
-                # Wait for object to get to fourth sensor before stopping
-                pass
+            # Wait for object to get to fourth sensor before stopping
+            Conveyor.blockForDetectObject(4)
 
             Conveyor.stop()
             objectPickUp = RobotPickUp.R1
 
-            while Conveyor.getDistance(4) < 50:
-                # Wait for object to be picked up
-                pass
+            # Wait for object to be picked up
+            Conveyor.blockForDetectObject(4, operator.lt)
 
 # Other functions
 def main():
