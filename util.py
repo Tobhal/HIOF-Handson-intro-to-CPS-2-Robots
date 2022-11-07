@@ -164,7 +164,10 @@ class Robot(urx.Robot):
         self.move(location + self.cords[object]['at'])
 
         self.send_program(rq_open())
-        time.sleep(0.1)
+        if self.name == 'rob2' and location == self.cords['conveyor']:
+            time.sleep(3)
+        else:
+            time.sleep(1)
 
         self.move(location + self.cords[object]['over'])
 
@@ -174,23 +177,36 @@ class Robot(urx.Robot):
         Uses the location for the centring
         Default to `CUBE` object
         """
-        print(f'{self.name}: center object at = {location}')
-        location.rx = 0.0
-        location.ry = 0.0
-
-        self.move(location + self.cords[object]['over'])
-        self.move(location + self.cords[object]['at'])
+        centerLocation = Pose(location.x, location.y, location.z)
 
         self.send_program(rq_open())
-        time.sleep(0.1)
 
-        location.rx = 2.2
-        location.ry = 2.2
+        print(f'{self.name}: center object at = {location}')        
+        centerLocation.rx = 0.0
+        centerLocation.ry = 3.14
 
-        self.move(location + self.cords[object]['at'])
+        self.move(centerLocation + self.cords[object]['over'])
+        self.move(centerLocation + self.cords[object]['at'])
+
         self.send_program(rq_close())
+        time.sleep(0.5)
+        self.send_program(rq_open())
+        time.sleep(0.5)
 
-        self.move(location + self.cords[object]['over'])
+        self.move(centerLocation + self.cords[object]['over'])
+
+        centerLocation.rx = 2.2
+        centerLocation.ry = 2.2
+        self.move(centerLocation + self.cords[object]['over'])
+
+        self.move(centerLocation + self.cords[object]['at'])
+        self.send_program(rq_close())
+        time.sleep(0.5)
+        self.send_program(rq_open())
+        time.sleep(0.5)
+
+        self.move(centerLocation + self.cords[object]['over'])
+    
 
     def move(self, location: Pose, moveWait = True):
         """
@@ -237,7 +253,7 @@ class Conveyor:
     mainSpeed = 0.13
     stopSpeed = 0.025
 
-    waitTime = 1.1
+    waitTime = 1.5
 
     waitAfterDetectLeft = 5
     waitAfterDetectRight = 5.3

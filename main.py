@@ -75,11 +75,16 @@ def move2(rob: Robot, camera: Camera):
         if objectPickUp.value == rob.name:
             objectPickUp = RobotPickUp.NONE
             rob.moveObjectFromConveyor()
+            rob.centerObject(rob.cords['object']['get'])
             rob.move(rob.cords['idlePose'])
             counter += 1
 
         if objectMove.value == rob.name:
             objectMove = RobotPickUp.NONE
+            rob.centerObject(rob.cords['object']['get'])
+
+            time.sleep(5)
+
             rob.moveObjectToConveyor(rob.cords['object']['get'])
             rob.move(rob.cords['idlePose'])
 
