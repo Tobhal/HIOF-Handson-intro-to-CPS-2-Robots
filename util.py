@@ -4,6 +4,7 @@ import requests
 import urllib.request
 import operator
 
+from threading import Lock
 from Gripper import *
 from dataclasses import dataclass
 from typing import List
@@ -117,10 +118,11 @@ class Robot(urx.Robot):
 
     status = Status.NOT_READY
 
-    def __init__(self, host: str, name: str, cords: dict, use_rt=False, use_simulation=False):
+    def __init__(self, host: str, name: str, cords: dict, lock: Lock, use_rt=False, use_simulation=False):
         super().__init__(host, use_rt, use_simulation)
         self.name = name
         self.cords = cords
+        self.lock = lock
 
         #activates gripper. only needed once per power cycle
         self.send_program(rq_activate())
@@ -141,14 +143,17 @@ class Robot(urx.Robot):
         Pick up a object at a location.
         Default to `CUBE` object
         """
-        self.send_program(rq_open())
+        with self.lock:
+            self.send_program(rq_open())
         time.sleep(0.1)
 
         print(f'{self.name}: move above pick up = {location}')
         self.move(location + self.cords[object]['over'])
 
         self.move(location + self.cords[object]['at'])
-        self.send_program(rq_close())
+        
+        with self.lock:
+            self.send_program(rq_close())
         time.sleep(0.6)
 
         self.move(location + self.cords[object]['over'])
@@ -163,11 +168,10 @@ class Robot(urx.Robot):
 
         self.move(location + self.cords[object]['at'])
 
-        self.send_program(rq_open())
-        if self.name == 'rob2' and location == self.cords['conveyor']:
-            time.sleep(3)
-        else:
-            time.sleep(1)
+        with self.lock:
+            self.send_program(rq_open())
+
+        time.sleep(1)
 
         self.move(location + self.cords[object]['over'])
 
@@ -179,7 +183,8 @@ class Robot(urx.Robot):
         """
         centerLocation = Pose(location.x, location.y, location.z)
 
-        self.send_program(rq_open())
+        with self.lock:
+            self.send_program(rq_open())
 
         print(f'{self.name}: center object at = {location}')        
         centerLocation.rx = 0.0
@@ -188,9 +193,12 @@ class Robot(urx.Robot):
         self.move(centerLocation + self.cords[object]['over'])
         self.move(centerLocation + self.cords[object]['at'])
 
-        self.send_program(rq_close())
+        with self.lock:
+            self.send_program(rq_close())
         time.sleep(0.5)
-        self.send_program(rq_open())
+
+        with self.lock:
+            self.send_program(rq_open())
         time.sleep(0.5)
 
         self.move(centerLocation + self.cords[object]['over'])
@@ -200,9 +208,11 @@ class Robot(urx.Robot):
         self.move(centerLocation + self.cords[object]['over'])
 
         self.move(centerLocation + self.cords[object]['at'])
-        self.send_program(rq_close())
+        with self.lock:
+            self.send_program(rq_close())
         time.sleep(0.5)
-        self.send_program(rq_open())
+        with self.lock:
+            self.send_program(rq_open())
         time.sleep(0.5)
 
         self.move(centerLocation + self.cords[object]['over'])
@@ -210,26 +220,30 @@ class Robot(urx.Robot):
 
     def move(self, location: Pose, moveWait = True):
         """
-        Function for moving robot using moveJ
+        Function for moving robot using moveJ. 
+        Acquires the thread lock for just the movement of the robot
         """
         if type(location) == Vec2:
             location = location.toPose()
         elif type(location) == Vec3:
             location = location.toPose()
         
-        #moves robot
-        self.movex("movej", location.toTuple(), acc=self.a, vel=self.a, wait=moveWait, relative=False, threshold=None)
+        with self.lock:
+            #moves robot
+            self.movex("movej", location.toTuple(), acc=self.a, vel=self.a, wait=moveWait, relative=False, threshold=None)
+
         if moveWait:
             time.sleep(0.1)
 
-    def moveObject(self, fromPos: Vec3, toPos: Vec3, object = Object.CUBE):
+    def moveObject(self, fromPos: Vec3, toPos: Vec3, object = Object.CUBE, stopAtIdle = True):
         """
         Move object from position to position. Leaves the robot above the object.
         Default to `CUBE` object
         """
         self.pickObject(fromPos, object)
         
-        self.move(self.cords['idlePose'])
+        if stopAtIdle:
+            self.move(self.cords['idlePose'])
 
         self.placeObject(toPos, object)
 
@@ -244,7 +258,12 @@ class Robot(urx.Robot):
         """
         Move object from conveyor to table
         """
-        self.moveObject(self.cords['conveyor'], self.cords['object']['get'], object)
+        conv = self.cords['conveyor']
+        conv.rx = 0.0
+        conv.ry = 3.14
+        self.moveObject(conv, self.cords['object']['place'], object)
+        conv.rx = 2.2
+        conv.ry = 2.2
 
 class Conveyor:
     """
@@ -253,12 +272,16 @@ class Conveyor:
     mainSpeed = 0.13
     stopSpeed = 0.025
 
-    waitTime = 1.5
+    waitTime = 0
 
-    waitAfterDetectLeft = 5
-    waitAfterDetectRight = 5.3
+    waitAfterDetectLeft = 2
+    waitAfterDetectRight = 2
 
     distToWall = 50
+
+    lock = None
+
+    status = Status.READY
 
     @staticmethod
     def getDistance(sensor: int) -> float:
@@ -278,47 +301,51 @@ class Conveyor:
             return None
 
     @staticmethod
-    def start_right(rob: Robot):
+    def start_right(rob: Robot, lock: Lock):
         """
         Moves the conveyor to the right
         """
-        rob.set_digital_out(5, 1)
-        #allow digital out 5 to stay active for 0.1s
-        time.sleep(0.1)
-        #set digital out back to 0
-        rob.set_digital_out(5, 0)
+        with lock:
+            rob.set_digital_out(5, 1)
+            #allow digital out 5 to stay active for 0.1s
+            time.sleep(0.1)
+            #set digital out back to 0
+            rob.set_digital_out(5, 0)
 
     @staticmethod
-    def start_left(rob: Robot):
+    def start_left(rob: Robot, lock: Lock):
         """
         Moves the conveyor to the left
         """
-        rob.set_digital_out(6, 1)
-        #allow digital out 6 to stay active for 0.1s
-        time.sleep(0.1)
-        #set digital out back to 0
-        rob.set_digital_out(6, 0)
+        with lock:
+            rob.set_digital_out(6, 1)
+            #allow digital out 6 to stay active for 0.1s
+            time.sleep(0.1)
+            #set digital out back to 0
+            rob.set_digital_out(6, 0)
 
     @staticmethod
-    def stop(rob: Robot):
+    def stop(rob: Robot, lock: Lock):
         """
         Stops the conveyor.
         """
-        rob.set_digital_out(7, 1)
-        #allow digital out 7 to stay active for 0.1s
-        time.sleep(0.1)
-        #set digital out back to 0
-        rob.set_digital_out(7, 0)
+        with lock:
+            rob.set_digital_out(7, 1)
+            #allow digital out 7 to stay active for 0.1s
+            time.sleep(0.1)
+            #set digital out back to 0
+            rob.set_digital_out(7, 0)
 
     @staticmethod
-    def setSpeed(rob: Robot, voltage: float):
+    def setSpeed(rob: Robot, lock: Lock, voltage: float):
         """
         Sets the speed of the conveyor. The speed is given in voltage
         """
         #sets analog out to voltage instead of current
-        rob.send_program("set_analog_outputdomain(1, 1)")
-        #sets analog out 1 to desired voltage. 0.012 is the slowest speed.
-        rob.set_analog_out(1, voltage)
+        with lock:
+            rob.send_program("set_analog_outputdomain(1, 1)")
+            #sets analog out 1 to desired voltage. 0.012 is the slowest speed.
+            rob.set_analog_out(1, voltage)
 
     @staticmethod
     def blockForDetectObject(sensor: int, compare = operator.gt):
