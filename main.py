@@ -1,348 +1,261 @@
-import urx
 import time
 
 from Gripper import *
 from util import *
 from threading import Thread
             
-rob1 = urx.Robot('10.1.1.6', use_rt=True)
-rob2 = urx.Robot('10.1.1.5', use_rt=True)
-conveyer = Convenor(rob2)
 camera1 = Camera('10.1.1.8')
 camera2 = Camera('10.1.1.7')
 
+block = {
+    'over': Vec3(0.0, 0.0, 0.09),
+    'at': Vec3(0.0, 0.0, 0.0),
+    'size': Vec3(0.05, 0.05, 0.05)
+}
+
+cylinder = {    # TODO: Change to correct measurements
+    'over': Vec3(0.0, 0.0, 0.09),
+    'at': Vec3(0.0, 0.0, 0.0),
+    'width': Vec3(0.06, 0.06, 0.07)
+}
+
 rob1Cords = {
-    'conveyer': Pose(0.015, 0.4, -0.02, rx=2.2, ry=-2.2),
-    'idlePose': Vec3(0.25, -0.22, 0.09),
-    'getObject': Vec3(0.00773, -0.31881, 0.0),
-    'placeObject': Vec3(0.3, -0.17, 0.0),
+    'conveyor': Pose(0.015, 0.401, -0.022, rx=2.2, ry=-2.2),
+    'idlePose': Pose(0.25, -0.22, 0.09),
+    'object': {
+        'get': Vec3(0.00564, -0.32577, 0.0),
+        'place': Vec3(-0.293, -0.410, 0.0)
+    },
+    Object.CUBE: block,
+    Object.CYLINDER: cylinder
 }
 
 rob2Cords = {
-    'conveyer': Pose(0.05, 0.4, -0.02, rx=2.2, ry=2.2),
-    'idlePose': Vec3(-0.25, -0.22, 0.09),
-    'getObject': Vec3(0.00773, -0.31881, 0.0),
-    'placeObject': Vec3(0.3, -0.17, 0.0),
+    'conveyor': Pose(0.05, 0.399, -0.02, rx=2.2, ry=2.2),
+    'idlePose': Pose(-0.25, -0.22, 0.09),
+    'object': {
+        'get': Vec3(0.00773, -0.31881, 0.0),
+        'place': Vec3(0.27, -0.42, 0.0),
+    },
+    Object.CUBE: block,
+    Object.CYLINDER: cylinder
 }
 
-objectPickUp = RobotPickUp.NONE
-objectMove = RobotPickUp.R1
+# Locks for preventing race conditions
+r1Lock = Lock()
+r2Lock = Lock()
+
+rob1 = Robot('10.1.1.6', 'rob1', rob1Cords, r1Lock, use_rt=True)
+rob2 = Robot('10.1.1.5', 'rob2', rob2Cords, r2Lock, use_rt=True)
+
+objectPickUp = RobotPickUp.NONE     
+"""Robot to pick up from conveyor""" 
+
+objectMove = RobotPickUp.R1         
+"""Robot to move object to conveyor"""
+
 endProgram = False
-
 counter = 0
-
-v = 0.8
-a = 0.5
+terminationCondition = lambda : endProgram or counter < 2
 
 useCamera = False
-activateGripper = True
 
-pos = Vec2(float(25/1000), float(-385/10000))
-lastPos = Vec2(pos.x, pos.y)
+def move(rob: Robot, camera: Camera):
+    """
+    Moves the robot between two points
+    """
+    print(f'{rob.name}: move to idle pos = {rob.cords["idlePose"]}')
+    rob.move(rob.cords['idlePose'])
 
-objectLocated = 0
-objectCount = 0
+    rob.moveObject(rob.cords['object']['get'], rob.cords['conveyor'])
 
-overBlock = 0.09
-atBlock = 0.0
+    print(f'{rob.name}: move to idle pos = {rob.cords["idlePose"]}')
+    rob.move(rob.cords['idlePose'])
 
-overConveyer = 0.04
-atConveyer = -0.02
+    rob.moveObject(rob.cords['conveyor'], rob.cords['object']['get'])
 
-# idlePose = Pose(0.25, -0.22, 0.09)
-# placeObject = Vec2(0.3, -0.17)
-# conveyerPos = Vec2(-0.012, 0.4)
+    rob.move(rob.cords['idlePose'])
 
-#function for moving robot using moveJ
-def move(rob: urx.Robot, location: (Pose or Vec3), moveWait: bool) -> None:
-    if type(location) == Vec3:
-        location = location.toPose()
-    
-    #moves robot
-    rob.movex("movej", location.toTuple(), acc=a, vel=v, wait=moveWait, relative=False, threshold=None)
-    if moveWait:
-        time.sleep(0.1)
+def move2(rob: Robot, camera: Camera):
+    """
+    Moves one block between the two robots
+    """
+    global objectPickUp, objectMove, terminationCondition, counter
 
-#Moves robot to coordinates set by camera
-def moveObject(rob: urx.Robot, fromPos: Vec3, toPos: Vec3, name: str) -> None:
-    global lastPos, objectCount, overConveyer, atConveyer, rob1Cords, rob2Cords
-    objectCount+= 1
-
-    if name == 'rob1':
-        idlePose = rob1Cords['idlePose']
-    elif name == 'rob2':
-        idlePose = rob2Cords['idlePose']
-
-    idlePose = Pose(idlePose.x, idlePose.y, idlePose.z)
-
-    overBlock = Vec3(0.0, 0.0, 0.09)
-
+    rob.move(rob.cords['idlePose'])
     rob.send_program(rq_open())
-    time.sleep(0.1)
 
-    print(f'{name}: move above pick up = {fromPos + overBlock}')
-    move(rob, fromPos + overBlock, True)
+    while terminationCondition():
+        if objectPickUp.value == rob.name:
+            rob.moveObjectFromConveyor()
 
-    print(f'{name}: move to pick up = {fromPos}')
-    move(rob, fromPos, True)
-    
-    #closes gripper
-    rob.send_program(rq_close())
-    
-    #sleep to allow gripper to close fully before program resumes
-    time.sleep(0.6)
-    
-    print(f'{name}: move above pick up = {fromPos + overBlock}')
-    move(rob, fromPos + overBlock, True)
-    # Object picked up
+            objectPickUp = RobotPickUp.NONE
+            rob.move(rob.cords['idlePose'])
+            counter += 1
 
-    print(f'{name}: move to idle pos = {idlePose}')
-    move(rob, idlePose, True)
+        if objectMove.value == rob.name:
+            rob.moveObjectToConveyor(rob.cords['object']['get'])
 
-    print(f'{name}: move above place = {toPos + overBlock}')
-    move(rob, toPos + overBlock, True)
+            objectMove = RobotPickUp.NONE
+            rob.move(rob.cords['idlePose'])
 
-    print(f'{name}: move to place = {toPos}')
-    move(rob, toPos + Vec3(0.0, 0.0, 0.004), True)
-    
+def move3(rob: Robot, camera: Camera):
+    """
+    One robot moves the object to the conveyor. When the block is moving the same robot sorts the blocks in its workspace.
+    The other robot pick up the object form the conveyor, then sorts it. After that it moves a wrong object to the other robot, it there are any
+    """
+    global objectPickUp, objectMove, rob1, rob2, terminationCondition, counter
+
+    rob.move(rob.cords['idlePose'])
     rob.send_program(rq_open())
-    time.sleep(0.2)
 
-    print(f'{name}: move above place = {toPos + overBlock}')
-    move(rob, toPos + overBlock, True)
+    while terminationCondition():
+        if objectPickUp.value == rob.name:
+            rob.moveObjectFromConveyor()
+            rob.cords['object']['place'].y += block['size'].y + 0.01
 
-def initRobot(rob: urx.Robot):
-    #activates gripper. only needed once per power cycle
-    rob.send_program(rq_activate())
-    time.sleep(2.5)
-    #sets speed of gripper to max
-    rob.send_program(rq_set_speed(250))
-    time.sleep(0.1)
-    #sets force of gripper to a low value
-    rob.send_program(rq_set_force(10))
-    time.sleep(0.1)
-    #sets robot tcp, the distance from robot flange to gripper tips. 
-    rob.set_tcp((0,0,0.16,0,0,0))
+            objectPickUp = RobotPickUp.NONE
+            rob.move(rob.cords['idlePose'])
+            counter += 1
 
-# Main robot move code
-def moveObjectToConveyer(rob: urx.Robot, robCords: dict, name: str):
-    print(f'{name}: move to idle pos = {rob2Cords["idlePose"]}')
-    move(rob, robCords['idlePose'].toPose(), True)
+        if objectMove.value == rob.name:
+            rob.moveObjectToConveyor(rob.cords['object']['get'])
+            rob.cords['object']['get'].y -= block['size'].y
 
-    moveObject(rob, robCords['getObject'], robCords['conveyer'], name)
+            objectMove = RobotPickUp.NONE
+            rob.move(rob.cords['idlePose'])
 
-    time.sleep(5)
+            rob.moveObject(rob.cords['object']['get'], rob.cords['object']['place'], stopAtIdle=False)
+            rob.cords['object']['place'].y += block['size'].y + 0.01
+            rob.cords['object']['get'].y -= block['size'].y
 
-    print(f'{name}: move to idle pos = {robCords["idlePose"]}')
-    move(rob, robCords['idlePose'], True)
-
-def moveObjectFromConveyer(rob: urx.Robot, robCords: dict, name: str):
-    global counter, objectMove
-    # Pick up object
-    print(f'{name} moving to pick up object')
-    moveObject(rob, robCords['conveyer'], robCords['getObject'], name)
-
-    print(f'{name} move to idle pose')
-    move(rob, robCords['idlePose'], True)
-
-    if name == 'rob1':
-        objectMove = RobotPickUp.R1
-    elif name == 'rob2':
-        objectMove = RobotPickUp.R2
-
-    counter += 1
-
-def rob1Move():
-    global rob1, camera1, rob1Cords
-    name = 'rob1'
-
-    print(f'{name}: move to idle pos = {rob1Cords["idlePose"]}')
-    move(rob1, rob1Cords['idlePose'], True)
-
-    moveObject(rob1, rob1Cords['getObject'], rob1Cords['conveyer'], name)
-    
-    print(f'{name}: move to idle pos = {rob1Cords["idlePose"]}')
-    move(rob1, rob1Cords['idlePose'], True)
-
-    rob1Cords['getObject'].z = 0.002 # temp fix
-
-    moveObject(rob1, rob1Cords['conveyer'], rob1Cords['getObject'], name)
-
-    move(rob1, rob1Cords['idlePose'], True)
-
-def rob1Move2():
-    global rob1, camera1, rob1Cords, objectPickUp, objectMove, endProgram
-    name = 'rob1'
-
-    move(rob1, rob1Cords['idlePose'], True)
-
-    while not endProgram or counter < 2:
-        if objectPickUp == RobotPickUp.R1:
-            moveObjectFromConveyer(rob1, rob1Cords, name)
+            rob.move(rob.cords['idlePose'])
         
-        if objectMove == RobotPickUp.R1:
-            moveObjectToConveyer(rob1, rob1Cords, name)
-            objectMove = RobotPickUp.NONE
-            
+        if objectMove.value != rob.name and objectMove != RobotPickUp.NONE and Conveyor.status == Status.READY:
+            print(f'Object Move = {objectMove}')
+            objectMove = RobotPickUp.flip(RobotPickUp(rob.name))
+
+            rob.moveObject(rob.cords['object']['get'], rob.cords['object']['place'], stopAtIdle=False)
+            rob.cords['object']['place'].y += block['size'].y + 0.01
+            rob.cords['object']['get'].y -= block['size'].y
+
+            rob.move(rob.cords['idlePose'])
 
 
-def rob2Move():
-    global rob2, camera2, rob2Cords
-    name = 'rob2'
+# Main conveyor move code
+def conveyorMove():
+    global objectPickUp, objectMove, endProgram, r2Lock
 
-    print(f'{name}: move to idle pos = {rob2Cords["idlePose"]}')
-    move(rob2, rob2Cords['idlePose'], True)
-
-    # objectPos = camera2.locateObject()
-
-    # objectPos = Vec3(objectPos.x, objectPos.y, 0.0)
-
-    moveObject(rob2, rob2Cords['getObject'], rob2Cords['conveyer'], name)
-    
-    print(f'{name}: move to idle pos = {rob2Cords["idlePose"]}')
-    move(rob2, rob2Cords['idlePose'], True)
-    
-    moveObject(rob2, rob2Cords['conveyer'], rob2Cords['getObject'], name)
-
-    move(rob2, rob2Cords['idlePose'], True)
-
-def rob2Move2():
-    global rob2, camera2, rob2Cords, objectPickUp, objectMove, endProgram
-    name = 'rob2'
-
-    move(rob2, rob2Cords['idlePose'], True)
-
-    while not endProgram or counter < 2:
-        if objectPickUp == RobotPickUp.R2:
-            moveObjectFromConveyer(rob2, rob2Cords, name)
-
-        if objectMove == RobotPickUp.R2:
-            moveObjectToConveyer(rob2, rob2Cords, name)
-            objectMove = RobotPickUp.NONE
-
-
-# Main conveyer move code
-def conveyerMove():
-    global objectPickUp, endProgram
-
-    while not endProgram:
-        conveyerDirRight = True
-        moving = False
-        waitTime = 1
-        waitAfterDetect = 5
-        mainSpeed = 0.13
-        stopSpeed = 0.025
-
+    while terminationCondition():
         objectPickUp = RobotPickUp.NONE
 
-        if conveyer.getDistance(4) < 50:
-            print(f'Conveyer moving right')
-            time.sleep(waitTime)
+        if Conveyor.getDistance(4) < 50:
+            print('conveyor: moving right')
+            Conveyor.status = Status.MOVING
+            time.sleep(Conveyor.waitTime)
 
-            if conveyerDirRight != True:
-                conveyerDirRight = True
+            Conveyor.setSpeed(rob2, r2Lock, Conveyor.mainSpeed)
+            Conveyor.start_right(rob2, r2Lock)
 
-            conveyer.setSpeed(mainSpeed)
-            conveyer.start()
+            # Wait for object to move to the second sensor before reducing the speed
+            Conveyor.blockForDetectObject(2)
+            print('sensor 2: block detected')
 
-            while conveyer.getDistance(2) > 50:
-                # Wait for object to move to the second sensor before reducing the speed
-                pass
+            time.sleep(Conveyor.waitAfterDetectRight)
 
-            time.sleep(waitAfterDetect)
+            Conveyor.setSpeed(rob2, r2Lock, Conveyor.stopSpeed)
 
-            conveyer.setSpeed(stopSpeed)
+            # Wait for object to get to first sensor before stopping
+            Conveyor.blockForDetectObject(1)
+            print('sensor 1: block detected')
 
-            while conveyer.getDistance(1) > 50:
-                # Wait for object to get to first sensor before stopping
-                pass
-
-            conveyer.stop()
+            print('conveyor: stopped')
+            Conveyor.stop(rob2, r2Lock)
+            Conveyor.status = Status.NOT_READY
             objectPickUp = RobotPickUp.R2
 
-            while conveyer.getDistance(1) < 50:
-                # Wait for object to be picked up
-                pass
+            # Wait for object to be picked up
+            Conveyor.blockForDetectObject(1, operator.lt)
 
-        elif conveyer.getDistance(1) < 50:
-            print(f'Conveyer moving left')
-            time.sleep(waitTime)
+            objectMove = RobotPickUp.R2
+            Conveyor.status = Status.READY
 
-            if conveyerDirRight != False:
-                conveyerDirRight = False
+        elif Conveyor.getDistance(1) < 50:
+            print('conveyor: moving left')
+            Conveyor.status = Status.MOVING
+            time.sleep(Conveyor.waitTime)
 
-            conveyer.setSpeed(mainSpeed)
-            conveyer.reverse()
+            Conveyor.setSpeed(rob2, r2Lock, Conveyor.mainSpeed)
+            Conveyor.start_left(rob2, r2Lock)
 
-            while conveyer.getDistance(3) > 50:
-                # Wait for object to move to the third sensor before reducing the speed
-                pass
+            # Wait for object to move to the third sensor before reducing the speed
+            Conveyor.blockForDetectObject(3)
+            print('sensor 3: block detected')
 
-            time.sleep(waitAfterDetect)
+            time.sleep(Conveyor.waitAfterDetectLeft)
             
-            conveyer.setSpeed(stopSpeed)
+            Conveyor.setSpeed(rob2, r2Lock, Conveyor.stopSpeed)
 
-            while conveyer.getDistance(4) > 50:
-                # Wait for object to get to fourth sensor before stopping
-                pass
+            # Wait for object to get to fourth sensor before stopping
+            Conveyor.blockForDetectObject(4)
+            print('sensor 4: block detected')
 
-            conveyer.stop()
+            print('conveyor: stopped')
+            Conveyor.stop(rob2, r2Lock)
+            Conveyor.status = Status.NOT_READY
             objectPickUp = RobotPickUp.R1
 
-            while conveyer.getDistance(4) < 50:
-                # Wait for object to be picked up
-                pass
+            # Wait for object to be picked up
+            Conveyor.blockForDetectObject(4, operator.lt)
+
+            objectMove = RobotPickUp.R1
+            Conveyor.status = Status.READY
 
 # Other functions
-def emptyFunc():
-    pass
-
 def main():
-    if activateGripper:    
-        initRobot(rob1)
-        initRobot(rob2)
+    rob1Thread = Thread(target=move, args=(rob1, camera1,))
+    rob2Thread = Thread(target=move, args=(rob2, camera2,))
 
-    rob1Thread = Thread(target=rob1Move)
-    rob2Thread = Thread(target=rob2Move)
-
-    rob1Thread.start()
     rob2Thread.start()
+    rob1Thread.start()
 
     rob1Thread.join()
     rob2Thread.join()
 
-def testMain():
-    rob1Thread = Thread(target=rob1Move2)
-    rob2Thread = Thread(target=rob2Move2)
-    conveyerThread = Thread(target=conveyerMove)
+def main2():
+    rob1Thread = Thread(target=move2, args=(rob1, camera1,))
+    rob2Thread = Thread(target=move2, args=(rob2, camera2,))
+    conveyorThread = Thread(target=conveyorMove)
 
     rob2Thread.start()
     rob1Thread.start()
-    conveyerThread.start()
+    conveyorThread.start()
 
     rob1Thread.join()
-    conveyerThread.join()
+    conveyorThread.join()
     rob2Thread.join()
 
-def test2Main():
-    global rob2, rob2Cords
-    pose = Pose(0.25, -0.22, 0.09)
+def main3():
+    rob1Thread = Thread(target=move3, args=(rob1, camera1,))
+    rob2Thread = Thread(target=move3, args=(rob2, camera2,))
+    conveyorThread = Thread(target=conveyorMove)
 
-    pose.rx = 2.2
-    pose.ry = 2.2
+    rob2Thread.start()
+    rob1Thread.start()
+    conveyorThread.start()
 
-    move(rob2, pose, True)
+    rob1Thread.join()
+    conveyorThread.join()
+    rob2Thread.join()
 
 if __name__ == '__main__':
-    initRobot(rob1)
-    initRobot(rob2)
-
     print('Program start')
-    time.sleep(1)
+    # time.sleep(1)
 
-    # test2Main()
-    testMain()
     # main()
-    
+    # main2()
+    main3()
+
+    print('Program stopped')
     rob1.close()
     rob2.close()
