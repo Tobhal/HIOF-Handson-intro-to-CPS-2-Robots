@@ -112,6 +112,7 @@ def move3(rob: Robot, camera: Camera):
     while terminationCondition():
         if objectPickUp.value == rob.name:
             rob.moveObjectFromConveyor()
+            rob.cords['object']['place'].y += block['size'].y + 0.01
 
             objectPickUp = RobotPickUp.NONE
             rob.move(rob.cords['idlePose'])
@@ -119,16 +120,25 @@ def move3(rob: Robot, camera: Camera):
 
         if objectMove.value == rob.name:
             rob.moveObjectToConveyor(rob.cords['object']['get'])
+            rob.cords['object']['get'].y -= block['size'].y
 
             objectMove = RobotPickUp.NONE
             rob.move(rob.cords['idlePose'])
+
             rob.moveObject(rob.cords['object']['get'], rob.cords['object']['place'], stopAtIdle=False)
+            rob.cords['object']['place'].y += block['size'].y + 0.01
+            rob.cords['object']['get'].y -= block['size'].y
+
             rob.move(rob.cords['idlePose'])
         
         if objectMove.value != rob.name and objectMove != RobotPickUp.NONE and Conveyor.status == Status.READY:
             print(f'Object Move = {objectMove}')
             objectMove = RobotPickUp.flip(RobotPickUp(rob.name))
+
             rob.moveObject(rob.cords['object']['get'], rob.cords['object']['place'], stopAtIdle=False)
+            rob.cords['object']['place'].y += block['size'].y + 0.01
+            rob.cords['object']['get'].y -= block['size'].y
+
             rob.move(rob.cords['idlePose'])
 
 

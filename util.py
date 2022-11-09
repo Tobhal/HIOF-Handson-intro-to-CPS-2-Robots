@@ -261,7 +261,9 @@ class Robot(urx.Robot):
         conv = self.cords['conveyor']
         conv.rx = 0.0
         conv.ry = 3.14
+
         self.moveObject(conv, self.cords['object']['place'], object)
+
         conv.rx = 2.2
         conv.ry = 2.2
 
@@ -272,7 +274,7 @@ class Conveyor:
     mainSpeed = 0.13
     stopSpeed = 0.025
 
-    waitTime = 0
+    waitTime = 1
 
     waitAfterDetectLeft = 2
     waitAfterDetectRight = 2
