@@ -111,6 +111,7 @@ class Status(Enum):
     NOT_READY = 0
     READY = 1
     MOVING = 2
+    ERROR = 3
 
 class Robot(urx.Robot):
     a = 0.5
@@ -145,7 +146,7 @@ class Robot(urx.Robot):
         """
         with self.lock:
             self.send_program(rq_open())
-        time.sleep(0.1)
+        # time.sleep(0.1)
 
         print(f'{self.name}: move above pick up = {location}')
         self.move(location + self.cords[object]['over'])
@@ -170,8 +171,7 @@ class Robot(urx.Robot):
 
         with self.lock:
             self.send_program(rq_open())
-
-        time.sleep(1)
+        time.sleep(0.1)
 
         self.move(location + self.cords[object]['over'])
 
@@ -216,18 +216,19 @@ class Robot(urx.Robot):
         time.sleep(0.5)
 
         self.move(centerLocation + self.cords[object]['over'])
-    
 
     def move(self, location: Pose, moveWait = True):
         """
         Function for moving robot using moveJ. 
         Acquires the thread lock for just the movement of the robot
         """
+        self.status = Status.MOVING
+
         if type(location) == Vec2:
             location = location.toPose()
         elif type(location) == Vec3:
             location = location.toPose()
-        
+
         with self.lock:
             #moves robot
             self.movex("movej", location.toTuple(), acc=self.a, vel=self.a, wait=moveWait, relative=False, threshold=None)
@@ -235,7 +236,9 @@ class Robot(urx.Robot):
         if moveWait:
             time.sleep(0.1)
 
-    def moveObject(self, fromPos: Vec3, toPos: Vec3, object = Object.CUBE, stopAtIdle = True):
+        self.status = Status.READY
+
+    def moveObject(self, fromPos: Vec3, toPos: Vec3, object = Object.CUBE, stopAtIdle = True, waitAtIdle = False):
         """
         Move object from position to position. Leaves the robot above the object.
         Default to `CUBE` object
@@ -243,7 +246,7 @@ class Robot(urx.Robot):
         self.pickObject(fromPos, object)
         
         if stopAtIdle:
-            self.move(self.cords['idlePose'])
+            self.move(self.cords['idlePose'], waitAtIdle)
 
         self.placeObject(toPos, object)
 
@@ -262,7 +265,7 @@ class Robot(urx.Robot):
         conv.rx = 0.0
         conv.ry = 3.14
 
-        self.moveObject(conv, self.cords['object']['place'], object)
+        self.moveObject(conv, self.cords['object']['place'], object, waitAtIdle=True)
 
         conv.rx = 2.2
         conv.ry = 2.2
@@ -271,13 +274,19 @@ class Conveyor:
     """
     Static class for handling the conveyor.
     """
-    mainSpeed = 0.13
+    mainSpeed = 0.15
+    """Main speed of the conveyor"""
     stopSpeed = 0.025
+    """Speed before detection from sensor 1 and 4"""
 
     waitTime = 1
+    """Time to before starting conveyor, normally after robot have placed object"""
 
-    waitAfterDetectLeft = 2
-    waitAfterDetectRight = 2
+    waitAfterDetectLeft = 3
+    """Wait after sensor 3 has detected the object"""
+
+    waitAfterDetectRight = 3.3
+    """Wait after sensor 2 has detected the object"""
 
     distToWall = 50
 

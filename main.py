@@ -45,8 +45,15 @@ rob2Cords = {
 r1Lock = Lock()
 r2Lock = Lock()
 
-rob1 = Robot('10.1.1.6', 'rob1', rob1Cords, r1Lock, use_rt=True)
-rob2 = Robot('10.1.1.5', 'rob2', rob2Cords, r2Lock, use_rt=True)
+endProgram = False
+
+try: 
+    rob1 = Robot('10.1.1.6', 'rob1', rob1Cords, r1Lock, use_rt=True)
+    rob2 = Robot('10.1.1.5', 'rob2', rob2Cords, r2Lock, use_rt=True)
+except:
+    print('Error ocurred with initializing robots. Exiting')
+    endProgram = True
+    exit()
 
 objectPickUp = RobotPickUp.NONE     
 """Robot to pick up from conveyor""" 
@@ -54,7 +61,6 @@ objectPickUp = RobotPickUp.NONE
 objectMove = RobotPickUp.R1         
 """Robot to move object to conveyor"""
 
-endProgram = False
 counter = 0
 terminationCondition = lambda : endProgram or counter < 2
 
@@ -108,6 +114,10 @@ def move3(rob: Robot, camera: Camera):
 
     rob.move(rob.cords['idlePose'])
     rob.send_program(rq_open())
+
+    # Wait for both robots to reach idle state before beginning
+    while rob1.status == Status.MOVING and rob2.status == Status.MOVING:
+        pass
 
     while terminationCondition():
         if objectPickUp.value == rob.name:
@@ -168,6 +178,8 @@ def conveyorMove():
             # Wait for object to get to first sensor before stopping
             Conveyor.blockForDetectObject(1)
             print('sensor 1: block detected')
+
+            time.sleep(0.4)
 
             print('conveyor: stopped')
             Conveyor.stop(rob2, r2Lock)
@@ -252,9 +264,13 @@ if __name__ == '__main__':
     print('Program start')
     # time.sleep(1)
 
-    # main()
-    # main2()
-    main3()
+    try:
+        # main()
+        # main2()
+        main3()
+    except KeyboardInterrupt:
+        Conveyor.stop(rob2, r2Lock)
+    
 
     print('Program stopped')
     rob1.close()
