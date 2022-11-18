@@ -3,10 +3,14 @@ from robot import *
 from conveyor import *
 from threading import Thread
 
-camera1 = Camera('10.1.1.8', Vec2(-20, -600))
-camera2 = Camera('10.1.1.7', Vec2(-30, 285))
+# camera1 = Camera('10.1.1.8', Vec2(40, -345))
+camera1 = Camera('10.1.1.8', Vec2(16, -353), [Object.CUBE, Object.CYLINDER])
+"""Camera for robot 1"""
 
-block = {
+camera2 = Camera('10.1.1.7', Vec2(-30, 290), [Object.CUBE, Object.CYLINDER])
+"""Camera for robot 2"""
+
+cube = {
     'over': Vec3(0.0, 0.0, 0.1),
     'at': Vec3(0.0, 0.0, 0.01),
     'size': Vec3(0.05, 0.05, 0.05)
@@ -25,7 +29,7 @@ rob_1_cords = {
         'get': Vec3(0.00564, -0.32577, 0.0),
         'place': Vec3(-0.293, -0.410, 0.0)
     },
-    Object.CUBE: block,
+    Object.CUBE: cube,
     Object.CYLINDER: cylinder
 }
 
@@ -36,7 +40,7 @@ rob_2_cords = {
         'get': Vec3(0.00773, -0.31881, 0.0),
         'place': Vec3(0.27, -0.42, 0.0),
     },
-    Object.CUBE: block,
+    Object.CUBE: cube,
     Object.CYLINDER: cylinder
 }
 
@@ -126,7 +130,7 @@ def move3(rob: Robot, camera: Camera):
     while termination_condition():
         if object_Pick_Up.value == rob.name:
             rob.move_object_from_conveyor()
-            rob.cords['object']['place'].y += block['size'].y + 0.01
+            rob.cords['object']['place'].y += cube['size'].y + 0.01
 
             object_Pick_Up = RobotPickUp.NONE
             rob.move(rob.cords['idlePose'])
@@ -134,14 +138,14 @@ def move3(rob: Robot, camera: Camera):
 
         if object_move.value == rob.name:
             rob.move_object_to_conveyor(rob.cords['object']['get'])
-            rob.cords['object']['get'].y -= block['size'].y
+            rob.cords['object']['get'].y -= cube['size'].y
 
             object_move = RobotPickUp.NONE
             rob.move(rob.cords['idlePose'])
 
             rob.move_object(rob.cords['object']['get'], rob.cords['object']['place'], stop_at_idle=False)
-            rob.cords['object']['place'].y += block['size'].y + 0.01
-            rob.cords['object']['get'].y -= block['size'].y
+            rob.cords['object']['place'].y += cube['size'].y + 0.01
+            rob.cords['object']['get'].y -= cube['size'].y
 
             rob.move(rob.cords['idlePose'])
 
@@ -150,22 +154,26 @@ def move3(rob: Robot, camera: Camera):
             object_move = RobotPickUp.flip(RobotPickUp(rob.name))
 
             rob.move_object(rob.cords['object']['get'], rob.cords['object']['place'], stop_at_idle=False)
-            rob.cords['object']['place'].y += block['size'].y + 0.01
-            rob.cords['object']['get'].y -= block['size'].y
+            rob.cords['object']['place'].y += cube['size'].y + 0.01
+            rob.cords['object']['get'].y -= cube['size'].y
 
             rob.move(rob.cords['idlePose'])
 
 
 def test_move(rob: Robot, camera: Camera):
     rob.move(rob.cords['idlePose'])
-    rob.send_program(rq_open())
+    rob.send_program(rq_close())
+
+    camera.switch_object(0)
 
     object_pos = camera.locate_object()
 
     print(object_pos)
 
-    rob.pick_object(object_pos.to_pose())
-    rob.place_object(object_pos.to_pose())
+    rob.move(object_pos.to_pose() + Vec3(0.0, 0.0, 0.05))
+
+    # rob.pick_object(object_pos.to_pose())
+    # rob.place_object(object_pos.to_pose())
 
     rob.move(rob.cords['idlePose'])
 
@@ -283,11 +291,11 @@ def main3():
 
 
 def test_main():
-    rob1_thread = Thread(target=test_move, args=(rob1, camera1,))
+    rob2_thread = Thread(target=test_move, args=(rob2, camera2,))
 
-    rob1_thread.start()
+    rob2_thread.start()
 
-    rob1_thread.join()
+    rob2_thread.join()
 
 
 if __name__ == '__main__':
@@ -303,5 +311,7 @@ if __name__ == '__main__':
         Conveyor.stop()
 
     print('Program stopped')
+    # noinspection PyUnboundLocalVariable
     rob1.close()
+    # noinspection PyUnboundLocalVariable
     rob2.close()
