@@ -70,14 +70,25 @@ class Pose(Vec3):
 
 
 class Camera:
-    switchCounter = 0
-    witchObject = 0
-    objectLocated = 0
+    """
+    Camera object to interface with each robot's camera.
+    """
+    switch_counter = 0
+    witch_object = 0
+    object_located = 0
 
-    def __init__(self, ip: str):
+    def __init__(self, ip: str, offsets: Vec2):
         self.ip = ip
+        self.offset = offsets
+        # TODO: Actually ping the camera to see if it responds.
 
-    def locate_object(self) -> Vec2:
+    def locate_object(self) -> Optional[Vec2]:
+        """
+        Give the location of the current object. object referring to what object locator the camera is using at the
+        given time.
+
+        TODO: Verify that the `gRES` is returning valid coordinates. If it doesn't, ether return None.
+        """
         # check for response
         page = urllib.request.urlopen(f'http://{self.ip}/CmdChannel?TRIG')
         time.sleep(2)
@@ -88,25 +99,43 @@ class Camera:
         # reads output from camera
         coords = page.read().decode('utf-8')
 
-        print(coords)
+        # print(coords, end="")
 
         # splits output
-        print(coords.split()[2])
-        _, self.witchObject, self.objectLocated, x, y = coords.split()[2].split(',')
+        # print(coords.split()[2])
+        _, self.witch_object, self.object_located, y, x = coords.split()[2].split(',')
 
-        pos = Vec2((float(x) + 25) / 1000, (float(y) - 385) / 1000)
+        print(f'witch:   {self.witch_object}')
+        print(f'located: {self.object_located}')
+        print(f'x = {x}, y = {y}')
+
+        # NOTE: The X,Y coordinated on the camera might be Vec2(-Y, -X) or something.
+        # So they are inverted and flipped.
+
+        pos = Vec2((float(x) + self.offset.x) / 1000, (float(y) + self.offset.y) / 1000)
 
         time.sleep(3)
 
         return pos
 
     def switch_object(self):
-        self.switchCounter += 1
-        if self.witchObject == 0:
-            urllib.request.urlopen('http://10.1.1.8/CmdChannel?sINT_1_1')
+        """
+        Switch what object the camera detects.
+
+        In theory, it changes what locator it uses. So `INT_1_0` is the first object locator in the camera. That means
+        that `INT_1_1` is the second object locator.
+
+        TODO: Change function to take channel as parameter to change to a specific object locator.
+        TODO: Make `switch_counter` be of type `Object` insteadof `int`.
+        """
+        self.switch_counter += 1
+        if self.witch_object == 0:
+            channel = 1
+            urllib.request.urlopen(f'http://10.1.1.8/CmdChannel?sINT_1_{channel}')
             time.sleep(3)
-        if self.witchObject == 1:
-            urllib.request.urlopen('http://10.1.1.8/CmdChannel?sINT_1_0')
+        if self.witch_object == 1:
+            channel = 0
+            urllib.request.urlopen(f'http://10.1.1.8/CmdChannel?sINT_1_{channel}')
             time.sleep(3)
         time.sleep(1)
         print(f"Camera {self.ip}: object switched")

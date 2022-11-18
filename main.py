@@ -1,18 +1,18 @@
 from util import *
 from threading import Thread
 
-camera1 = Camera('10.1.1.8')
-camera2 = Camera('10.1.1.7')
+camera1 = Camera('10.1.1.8', Vec2(-20, -600))
+camera2 = Camera('10.1.1.7', Vec2(-30, 285))
 
 block = {
-    'over': Vec3(0.0, 0.0, 0.09),
-    'at': Vec3(0.0, 0.0, 0.0),
+    'over': Vec3(0.0, 0.0, 0.1),
+    'at': Vec3(0.0, 0.0, 0.01),
     'size': Vec3(0.05, 0.05, 0.05)
 }
 
 cylinder = {  # TODO: Change to correct measurements
-    'over': Vec3(0.0, 0.0, 0.09),
-    'at': Vec3(0.0, 0.0, 0.0),
+    'over': Vec3(0.0, 0.0, 0.1),
+    'at': Vec3(0.0, 0.0, 0.01),
     'width': Vec3(0.06, 0.06, 0.07)
 }
 
@@ -154,6 +154,20 @@ def move3(rob: Robot, camera: Camera):
             rob.move(rob.cords['idlePose'])
 
 
+def test_move(rob: Robot, camera: Camera):
+    rob.move(rob.cords['idlePose'])
+    rob.send_program(rq_open())
+
+    object_pos = camera.locate_object()
+
+    print(object_pos)
+
+    rob.pick_object(object_pos.to_pose())
+    rob.place_object(object_pos.to_pose())
+
+    rob.move(rob.cords['idlePose'])
+
+
 # Main conveyor move code
 def conveyor_move():
     global object_Pick_Up, object_move, end_program, rob2
@@ -266,17 +280,23 @@ def main3():
     rob2_thread.join()
 
 
+def test_main():
+    rob1_thread = Thread(target=test_move, args=(rob1, camera1,))
+
+    rob1_thread.start()
+
+    rob1_thread.join()
+
+
 if __name__ == '__main__':
     print('Program start')
     # time.sleep(1)
 
-    rob1.send_program(rq_activate())
-    rob1.send_program(rq_open())
-
     try:
         # main()
         # main2()
-        main3()
+        # main3()
+        test_main()
     except KeyboardInterrupt:
         Conveyor.stop()
 
