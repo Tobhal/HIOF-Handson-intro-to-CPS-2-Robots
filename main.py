@@ -1,4 +1,6 @@
-from util import *
+from camera import *
+from robot import *
+from conveyor import *
 from threading import Thread
 
 camera1 = Camera('10.1.1.8', Vec2(-20, -600))
