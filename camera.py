@@ -1,6 +1,11 @@
+from __future__ import annotations
+
 import urllib.request
+import cv2
+import numpy as np
 
 from robot import *
+
 
 class BankException(Exception):
     pass
@@ -51,21 +56,122 @@ class Camera:
 
             # splits output
             # print(coords.split()[2])
-            _, obj, self.object_located, y, x = coords.split()[2].split(',')
+            error_code, obj, self.object_located, y, x = coords.split()[2].split(',')
             self.witch_object = self.objects[int(obj)]
 
         # print(f'witch:   {self.witch_object}')
         # print(f'located: {self.object_located}')
         print(f'x = {x}, y = {y}')
 
+        x += self.offset.x
+        y += self.offset.y
+
+        x *= -1
+        y *= -1
+
+        x *= 0.91
+        y *= 0.91
+
         # NOTE: The X,Y coordinated on the camera might be Vec2(-Y, -X) or something.
         # So they are inverted and flipped.
 
-        pos = Vec2((float(y) + self.offset.x) / 1000, (float(x) + self.offset.y) / 1000)
+        pos = Vec2((float(y)) / 1000, (float(x)) / 1000)
 
         time.sleep(3)
 
         return pos
+
+    def locate_object_2(self) -> Optional[Vec2]:
+        req = urllib.request.urlopen(f'http://{self.ip}/LiveImage.jpg')
+        arr = np.asarray(bytearray(req.read()), dtype=np.uint8)
+        img = cv2.imdecode(arr, -1)
+
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        _, threshold = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
+
+        contours, _ = cv2.findContours(threshold, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+        i = 0
+
+        self.show_image(img)
+
+        return None
+
+    @staticmethod
+    def show_image(image):
+        cv2.imshow('image', image)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+
+    def get_image(self):
+        req = urllib.request.urlopen(f'http://{self.ip}/LiveImage.jpg')
+        arr = np.asarray(bytearray(req.read()), dtype=np.uint8)
+        img = cv2.imdecode(arr, -1)
+
+        x, y = 14, 191
+        h, w = 450, 435
+
+        img = img[x:w, y:h]
+
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        return img
+
+    def image_coords_to_robot_coords(self, x: int | float, y: int | float) -> tuple[float, float]:
+        x = ((x + self.offset.x) * -1) * 1.08
+        y = ((y + self.offset.y) * -1) * 1.08
+
+        return x, y
+
+    def get_cubes(self) -> Optional[list[Vec2]]:
+        img = self.get_image()
+
+        _, threshold = cv2.threshold(img, 175, 255, cv2.THRESH_BINARY)
+
+        contours, hierarchy = cv2.findContours(threshold, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+        cubes = []
+
+        for cnt in contours:
+            x1, y1 = cnt[0][0]
+            approx = cv2.approxPolyDP(cnt, 0.04 * cv2.arcLength(cnt, True), True)
+            if len(approx) == 4:
+                x, y, w, h = cv2.boundingRect(cnt)
+
+                if w < 25 or h < 25:
+                    continue
+
+                x, y = self.image_coords_to_robot_coords(x, y)
+
+                cube = Vec2((y + (h / 2)) / 1000, (x + (w / 2)) / 1000)
+
+                cubes.append(cube)
+
+        return cubes if len(cubes) > 0 else None
+
+    def get_cylinders(self) -> Optional[list[Vec2]]:
+        img = self.get_image()
+        img = cv2.blur(img, (3, 3))
+        circles = cv2.HoughCircles(img, cv2.HOUGH_GRADIENT, 1, 20,
+                                   param1=50,
+                                   param2=30,
+                                   minRadius=1,
+                                   maxRadius=40
+                                   )
+
+        cylinders = []
+
+        if circles is not None:
+            circles = np.uint16(np.around(circles))
+
+            for pt in circles[0, :]:
+                a, b, r = pt[0], pt[1], pt[2]
+
+                a, b = self.image_coords_to_robot_coords(a, b)
+
+                cylinders.append(Vec2(b / 1000, a / 1000))
+
+        return cylinders if len(cylinders) > 0 else None
 
     def switch_object(self, bank: int):
         """
@@ -88,3 +194,44 @@ class Camera:
         self.witch_object = self.objects[bank]
 
         print(f"Camera {self.ip}: object switched to {self.witch_object}")
+
+
+""" Code graveyard
+        # list for storing names of shapes
+        for contour in contours:
+
+            # here we are ignoring first counter because
+            # findcontour function detects whole image as shape
+            if i == 0:
+                i = 1
+                continue
+
+            # cv2.approxPloyDP() function to approximate the shape
+            approx = cv2.approxPolyDP(
+                contour, 0.01 * cv2.arcLength(contour, True), True)
+
+            # using drawContours() function
+            cv2.drawContours(img, [contour], 0, (0, 0, 255), 5)
+
+            # finding center point of shape
+            M = cv2.moments(contour)
+            if M['m00'] != 0.0:
+                x = int(M['m10'] / M['m00'])
+                y = int(M['m01'] / M['m00'])
+
+            # putting shape name at center of each shape
+            if len(approx) == 3:
+                cv2.putText(img, 'Triangle', (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+
+            elif len(approx) == 4:
+                cv2.putText(img, 'Quadrilateral', (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+
+            elif len(approx) == 5:
+                cv2.putText(img, 'Pentagon', (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+
+            elif len(approx) == 6:
+                cv2.putText(img, 'Hexagon', (x, y),cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+
+            else:
+                cv2.putText(img, 'circle', (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+"""

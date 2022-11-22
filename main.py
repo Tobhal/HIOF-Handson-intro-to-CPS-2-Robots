@@ -1,10 +1,12 @@
+import time
+
 from camera import *
 from robot import *
 from conveyor import *
 from threading import Thread
 
 # camera1 = Camera('10.1.1.8', Vec2(40, -345))
-camera1 = Camera('10.1.1.8', Vec2(16, -353), [Object.CUBE, Object.CYLINDER])
+camera1 = Camera('10.1.1.8', Vec2(240, -170), [Object.CUBE, Object.CYLINDER])
 """Camera for robot 1"""
 
 camera2 = Camera('10.1.1.7', Vec2(-30, 290), [Object.CUBE, Object.CYLINDER])
@@ -24,7 +26,7 @@ cylinder = {  # TODO: Change to correct measurements
 
 rob_1_cords = {
     'conveyor': Pose(0.015, 0.401, -0.022, rx=2.2, ry=-2.2),
-    'idlePose': Pose(0.25, -0.22, 0.09),
+    'idlePose': Pose(0.25, -0.12, 0.09),
     'object': {
         'get': Vec3(0.00564, -0.32577, 0.0),
         'place': Vec3(-0.293, -0.410, 0.0)
@@ -164,13 +166,22 @@ def test_move(rob: Robot, camera: Camera):
     rob.move(rob.cords['idlePose'])
     rob.send_program(rq_close())
 
-    camera.switch_object(0)
+    cubes = camera.get_cubes()
+    cylinders = camera.get_cylinders()
 
-    object_pos = camera.locate_object()
+    print(f'num of cubes = {len(cubes)}')
 
-    print(object_pos)
+    for cube_obj in cubes:
+        print(cube_obj)
 
-    rob.move(object_pos.to_pose() + Vec3(0.0, 0.0, 0.05))
+        rob.move(cube_obj.to_pose() + Vec3(0.0, 0.0, 0.09))
+
+    print(f'num of cylinders')
+
+    for cylinder_obj in cylinders:
+        print(cylinder_obj)
+
+        rob.move(cylinder_obj.to_pose() + Vec3(0.0, 0.0, 0.09))
 
     # rob.pick_object(object_pos.to_pose())
     # rob.place_object(object_pos.to_pose())
@@ -291,7 +302,7 @@ def main3():
 
 
 def test_main():
-    rob2_thread = Thread(target=test_move, args=(rob2, camera2,))
+    rob2_thread = Thread(target=test_move, args=(rob1, camera1,))
 
     rob2_thread.start()
 
@@ -301,6 +312,7 @@ def test_main():
 if __name__ == '__main__':
     print('Program start')
     # time.sleep(1)
+
 
     try:
         # main()
