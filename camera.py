@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import urllib.request
+from typing import Optional
+
 import cv2
 import numpy as np
 
@@ -23,10 +25,21 @@ class Camera:
     witch_object = 0
     object_located = 0
 
-    def __init__(self, ip: str, offsets: Vec2, objects: list[Object]):
+    def __init__(self,
+                 ip: str,
+                 offsets: Vec2,
+                 offset_scale: Vec2,
+                 invert: Vec2,
+                 camera_cut: tuple[Vec2, Vec2],
+                 camera_threshold: int,
+                 objects: list[Object]):
         self.ip = ip
         self.offset = offsets
+        self.offset_scale = offset_scale
+        self.invert = invert
+        self.camera_cut = camera_cut
         self.objects = objects
+        self.camera_threshold = camera_threshold
         # TODO: Actually ping the camera to see if it responds.
 
     def locate_object(self) -> Optional[Vec2]:
@@ -40,8 +53,7 @@ class Camera:
         page = urllib.request.urlopen(f'http://{self.ip}/CmdChannel?TRIG')
         time.sleep(2)
 
-        x = 0.0
-        y = 0.0
+        x, y = 0.0, 0.0
 
         # Get coords
         while x == 0.0 and y == 0.0:  # FIX: Temp fix for troubleshooting
@@ -62,15 +74,6 @@ class Camera:
         # print(f'witch:   {self.witch_object}')
         # print(f'located: {self.object_located}')
         print(f'x = {x}, y = {y}')
-
-        x += self.offset.x
-        y += self.offset.y
-
-        x *= -1
-        y *= -1
-
-        x *= 0.91
-        y *= 0.91
 
         # NOTE: The X,Y coordinated on the camera might be Vec2(-Y, -X) or something.
         # So they are inverted and flipped.
@@ -108,8 +111,8 @@ class Camera:
         arr = np.asarray(bytearray(req.read()), dtype=np.uint8)
         img = cv2.imdecode(arr, -1)
 
-        x, y = 14, 191
-        h, w = 450, 435
+        x, y = self.camera_cut[0].to_tuple()
+        h, w = self.camera_cut[1].to_tuple()
 
         img = img[x:w, y:h]
 
@@ -118,15 +121,15 @@ class Camera:
         return img
 
     def image_coords_to_robot_coords(self, x: int | float, y: int | float) -> tuple[float, float]:
-        x = ((x + self.offset.x) * -1) * 1.08
-        y = ((y + self.offset.y) * -1) * 1.08
+        x = ((x + self.offset.x) * self.invert.x) * self.offset_scale.x
+        y = ((y + self.offset.y) * self.invert.y) * self.offset_scale.y
 
         return x, y
 
     def get_cubes(self) -> Optional[list[Vec2]]:
         img = self.get_image()
 
-        _, threshold = cv2.threshold(img, 175, 255, cv2.THRESH_BINARY)
+        _, threshold = cv2.threshold(img, self.camera_threshold, 255, cv2.THRESH_BINARY)
 
         contours, hierarchy = cv2.findContours(threshold, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 

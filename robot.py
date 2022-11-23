@@ -2,7 +2,7 @@ import urx
 import time
 
 from Gripper import *
-from util import *
+from util import Status, Vec2, Vec3, Pose, Object
 from threading import Lock
 
 
@@ -32,7 +32,7 @@ class Robot(urx.Robot):
 
         self.status = Status.READY
 
-    def pick_object(self, location: Pose, object=Object.CUBE):
+    def pick_object(self, location: Pose, current_object=Object.CUBE):
         """
         Pick up a object at a location.
         Default to `CUBE` object
@@ -42,38 +42,39 @@ class Robot(urx.Robot):
         # time.sleep(0.1)
 
         print(f'{self.name}: move above pick up = {location}')
-        self.move(location + self.cords[object]['over'])
+        self.move(location + self.cords[current_object]['over'])
 
-        self.move(location + self.cords[object]['at'])
+        self.move(location + self.cords[current_object]['at'])
 
         with self.lock:
             self.send_program(rq_close())
         time.sleep(0.6)
 
-        self.move(location + self.cords[object]['over'])
+        self.move(location + self.cords[current_object]['over'])
 
-    def place_object(self, location: Pose, object=Object.CUBE):
+    def place_object(self, location: Pose, current_object=Object.CUBE):
         """
         Place a object at a location.
         Default to `CUBE` object
         """
         print(f'{self.name}: move above place = {location}')
-        self.move(location + self.cords[object]['over'])
+        self.move(location + self.cords[current_object]['over'])
 
-        self.move(location + self.cords[object]['at'])
+        self.move(location + self.cords[current_object]['at'])
 
         with self.lock:
             self.send_program(rq_open())
         time.sleep(0.1)
 
-        self.move(location + self.cords[object]['over'])
+        self.move(location + self.cords[current_object]['over'])
 
-    def center_object(self, location: Pose, object=Object.CUBE):
+    def center_object(self, location: Pose, current_object=Object.CUBE):
         """
         Center the object in the TCP. Grabs the object at one location, TCP rotates 90 deg and grabs again.
         Uses the location for the centring
         Default to `CUBE` object
         """
+        # Remove rotation
         center_location = Pose(location.x, location.y, location.z)
 
         with self.lock:
@@ -84,8 +85,8 @@ class Robot(urx.Robot):
         center_location.ry = 3.14
 
         def open_close():
-            self.move(center_location + self.cords[object]['over'])
-            self.move(center_location + self.cords[object]['at'])
+            self.move(center_location + self.cords[current_object]['over'])
+            self.move(center_location + self.cords[current_object]['at'])
 
             with self.lock:
                 self.send_program(rq_close())
@@ -95,7 +96,7 @@ class Robot(urx.Robot):
                 self.send_program(rq_open())
             time.sleep(0.5)
 
-            self.move(center_location + self.cords[object]['over'])
+            self.move(center_location + self.cords[current_object]['over'])
 
         open_close()
 
@@ -126,26 +127,28 @@ class Robot(urx.Robot):
 
         self.status = Status.READY
 
-    def move_object(self, from_pos: Vec3, to_pos: Vec3, object=Object.CUBE, stop_at_idle=True, wait_at_idle=False):
+    def move_object(self, from_pos: Vec3, to_pos: Vec3,
+                    current_object=Object.CUBE, stop_at_idle=True, wait_at_idle=False
+                    ):
         """
         Move object from position to position. Leaves the robot above the object.
         Default to `CUBE` object
         """
-        self.pick_object(from_pos.to_pose(), object)
+        self.pick_object(from_pos.to_pose(), current_object)
 
         if stop_at_idle:
             self.move(self.cords['idlePose'], wait_at_idle)
 
-        self.place_object(to_pos.to_pose(), object)
+        self.place_object(to_pos.to_pose(), current_object)
 
-    def move_object_to_conveyor(self, pick_pos: Vec3, object=Object.CUBE):
+    def move_object_to_conveyor(self, pick_pos: Vec3, current_object=Object.CUBE):
         """
         Moves object form `pickPos` to the `conveyor` position.
         Default to `CUBE` object
         """
-        self.move_object(pick_pos, self.cords['conveyor'] + Vec3(0.0, 0.0, 0.001), object)
+        self.move_object(pick_pos, self.cords['conveyor'] + Vec3(0.0, 0.0, 0.001), current_object)
 
-    def move_object_from_conveyor(self, object=Object.CUBE):
+    def move_object_from_conveyor(self, current_object=Object.CUBE):
         """
         Move object from conveyor to table
         """
@@ -153,7 +156,7 @@ class Robot(urx.Robot):
         conv.rx = 0.0
         conv.ry = 3.14
 
-        self.move_object(conv, self.cords['object']['place'], object)
+        self.move_object(conv, self.cords['object']['place'], current_object)
 
         conv.rx = 2.2
         conv.ry = 2.2

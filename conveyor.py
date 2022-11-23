@@ -1,3 +1,8 @@
+import operator
+from typing import Optional
+
+import requests
+
 from robot import *
 
 
@@ -30,7 +35,8 @@ class Conveyor:
         Change port[n] to change sensor. 1 is closest to the door, 4 is the furthest away from the door
         """
         r = requests.post('http://10.1.1.9', json={"code": "request", "cid": 1, "adr": "/getdatamulti", "data": {
-            "datatosend": [f"/iolinkmaster/port[{sensor}]/iolinkdevice/pdin"]}})
+            "datatosend": [f"/iolinkmaster/port[{sensor}]/iolinkdevice/pdin"]
+        }})
         res = r.json()
         res1 = res['data']
         data = str(res1)

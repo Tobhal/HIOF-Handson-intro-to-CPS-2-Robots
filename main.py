@@ -1,15 +1,25 @@
+from __future__ import annotations
+
+import operator
 import time
 
-from camera import *
-from robot import *
-from conveyor import *
+from typing import Callable, Optional
+
+from util import Vec2, Vec3, Pose, Object, RobotPickUp, Status
+from robot import Robot
+from Gripper import *
+from camera import Camera
+from conveyor import Conveyor
 from threading import Thread
 
-# camera1 = Camera('10.1.1.8', Vec2(40, -345))
-camera1 = Camera('10.1.1.8', Vec2(240, -170), [Object.CUBE, Object.CYLINDER])
+camera1 = Camera('10.1.1.8', Vec2(240, -170), Vec2(1.08, 1.08), Vec2(-1, -1),
+                 (Vec2(14, 191), Vec2(450, 325)), 175,
+                 [Object.CUBE, Object.CYLINDER])
 """Camera for robot 1"""
 
-camera2 = Camera('10.1.1.7', Vec2(-30, 290), [Object.CUBE, Object.CYLINDER])
+camera2 = Camera('10.1.1.7', Vec2(-638, -240), Vec2(0.91, 0.91), Vec2(1, 1),
+                 (Vec2(0, 0), Vec2(450, 477)), 100,
+                 [Object.CUBE, Object.CYLINDER])
 """Camera for robot 2"""
 
 cube = {
@@ -37,7 +47,7 @@ rob_1_cords = {
 
 rob_2_cords = {
     'conveyor': Pose(0.05, 0.399, -0.02, rx=2.2, ry=2.2),
-    'idlePose': Pose(-0.25, -0.22, 0.09),
+    'idlePose': Pose(-0.25, -0.12, 0.09),
     'object': {
         'get': Vec3(0.00773, -0.31881, 0.0),
         'place': Vec3(0.27, -0.42, 0.0),
@@ -47,6 +57,9 @@ rob_2_cords = {
 }
 
 end_program = False
+
+rob1: Optional[Robot] = None
+rob2: Optional[Robot] = None
 
 # noinspection PyBroadException
 try:
@@ -171,17 +184,19 @@ def test_move(rob: Robot, camera: Camera):
 
     print(f'num of cubes = {len(cubes)}')
 
-    for cube_obj in cubes:
-        print(cube_obj)
+    if cubes:
+        for cube_obj in cubes:
+            print(cube_obj)
 
-        rob.move(cube_obj.to_pose() + Vec3(0.0, 0.0, 0.09))
+            rob.move(cube_obj.to_pose() + Vec3(0.0, 0.0, 0.09))
 
-    print(f'num of cylinders')
+    print(f'num of cylinders = {len(cylinders)}')
 
-    for cylinder_obj in cylinders:
-        print(cylinder_obj)
+    if cylinders:
+        for cylinder_obj in cylinders:
+            print(cylinder_obj)
 
-        rob.move(cylinder_obj.to_pose() + Vec3(0.0, 0.0, 0.09))
+            rob.move(cylinder_obj.to_pose() + Vec3(0.0, 0.0, 0.09))
 
     # rob.pick_object(object_pos.to_pose())
     # rob.place_object(object_pos.to_pose())
@@ -262,68 +277,46 @@ def conveyor_move():
 
 
 # Other functions
-def main():
-    rob1_thread = Thread(target=move, args=(rob1, camera1,))
-    rob2_thread = Thread(target=move, args=(rob2, camera2,))
+def main(move_func: Callable[[Robot, Camera], None],
+         robots: list[tuple[Robot, Camera]],
+         conveyor_func: Callable = None,
+         ):
+    threads: list[Thread] = list()
 
-    rob2_thread.start()
-    rob1_thread.start()
+    for rob in robots:
+        threads.append(Thread(target=move_func, args=(rob[0], rob[1],)))
 
-    rob1_thread.join()
-    rob2_thread.join()
+    if conveyor_func:
+        threads.append(Thread(target=conveyor_func))
 
+    for thread in threads:
+        thread.start()
 
-def main2():
-    rob1_thread = Thread(target=move2, args=(rob1, camera1,))
-    rob2_thread = Thread(target=move2, args=(rob2, camera2,))
-    conveyor_thread = Thread(target=conveyor_move)
-
-    rob2_thread.start()
-    rob1_thread.start()
-    conveyor_thread.start()
-
-    rob1_thread.join()
-    conveyor_thread.join()
-    rob2_thread.join()
-
-
-def main3():
-    rob1_thread = Thread(target=move3, args=(rob1, camera1,))
-    rob2_thread = Thread(target=move3, args=(rob2, camera2,))
-    conveyor_thread = Thread(target=conveyor_move)
-
-    rob2_thread.start()
-    rob1_thread.start()
-    conveyor_thread.start()
-
-    rob1_thread.join()
-    conveyor_thread.join()
-    rob2_thread.join()
+    for thread in threads:
+        thread.join()
 
 
 def test_main():
-    rob2_thread = Thread(target=test_move, args=(rob1, camera1,))
+    rob1_thread = Thread(target=test_move, args=(rob2, camera2,))
 
-    rob2_thread.start()
+    rob1_thread.start()
 
-    rob2_thread.join()
+    rob1_thread.join()
 
 
 if __name__ == '__main__':
     print('Program start')
-    # time.sleep(1)
-
 
     try:
-        # main()
-        # main2()
-        # main3()
-        test_main()
+        # main(move)
+        # main(move2, conveyor_move)
+        # main(move3, conveyor_move)
+        # test_main()
+        main(test_move, [(rob1, camera1), (rob2, camera2)])
     except KeyboardInterrupt:
         Conveyor.stop()
 
     print('Program stopped')
-    # noinspection PyUnboundLocalVariable
+    Conveyor.stop()
     rob1.close()
-    # noinspection PyUnboundLocalVariable
     rob2.close()
