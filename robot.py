@@ -5,23 +5,26 @@ import time
 
 from Gripper import *
 from util import Status, Vec2, Vec3, Pose, Object
+from stack import Stack
 from threading import Lock
 
 
 class Robot(urx.Robot):
-    a = 0.5
-    v = 0.8
+    a, v = 0.5, 0.8
 
     status = Status.NOT_READY
 
     def __init__(self, host: str, name: str, object_store: Object,
                  cords: dict[str | Object, Pose | dict[str, Vec3] | dict[str, Vec3] | dict[str, Vec3]],
+                 place_stack: Stack, conveyor_stack: Stack,
                  use_rt=False, use_simulation=False):
         super().__init__(host, use_rt, use_simulation)
         self.name = name
         self.object_store = object_store
         self.object_move = Object.flip(object_store)
         self.cords = cords
+        self.place_stack = place_stack
+        self.conveyor_stack = conveyor_stack
         self.lock = Lock()
 
         # activates gripper. only needed once per power cycle
@@ -133,7 +136,7 @@ class Robot(urx.Robot):
 
         self.status = Status.READY
 
-    def move_object(self, from_pos: Vec3, to_pos: Vec3,
+    def move_object(self, from_pos: Vec3 | Vec2, to_pos: Vec3 | Vec2,
                     current_object=Object.CUBE, stop_at_idle=True, wait_at_idle=False
                     ):
         """
