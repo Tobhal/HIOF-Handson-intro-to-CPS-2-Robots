@@ -63,13 +63,15 @@ rob1: Optional[Robot] = None
 rob2: Optional[Robot] = None
 
 rob1_place_stack = Stack(rob1_cords['object']['place'], Vec2(-1.0, 0.0), 2, Object.CUBE)
-rob1_conveyor_stack = Stack(rob1_cords['conveyor'])
+rob1_conveyor_stack = Stack(rob1_cords['conveyor'], Vec2(1.0, 0.0), 1, Object.CYLINDER)
+
 rob2_place_stack = Stack(rob2_cords['object']['place'], Vec2(-1.0, 0.0), 2, Object.CYLINDER)
+rob2_conveyor_stack = Stack(rob2_cords['conveyor'], Vec2(1.0, 0.0), 1, Object.CUBE)
 
 # noinspection PyBroadException
 try:
-    rob1 = Robot('10.1.1.6', 'rob1', Object.CUBE, rob1_cords, use_rt=True)
-    rob2 = Robot('10.1.1.5', 'rob2', Object.CYLINDER, rob2_cords, use_rt=True)
+    rob1 = Robot('10.1.1.6', 'rob1', Object.CUBE, rob1_cords, rob1_place_stack, rob1_conveyor_stack, use_rt=True)
+    rob2 = Robot('10.1.1.5', 'rob2', Object.CYLINDER, rob2_cords, rob2_place_stack, rob2_conveyor_stack, use_rt=True)
     Conveyor.robot = rob2
     Conveyor.lock = rob2.lock
 except:
@@ -93,6 +95,16 @@ object_move = RobotPickUp.R1
 counter = 0
 use_camera = False
 
+objects_found = {
+    'rob1': {
+        Object.CUBE: [],
+        Object.CYLINDER: []
+    },
+    'rob2': {
+        Object.CUBE: [],
+        Object.CYLINDER: []
+    }
+}
 
 def termination_condition():
     return end_program or counter < 2
@@ -100,16 +112,15 @@ def termination_condition():
 
 # Pre robot move functions
 def pre_run1():
-    global rob1, rob2, camera1, camera2, object_move, object_Pick_Up
-    rob1_cubes, rob1_cylinders = camera1.get_shapes()
+    global rob1, rob2, camera1, camera2, object_move, object_Pick_Up, objects_found
+    objects_found['rob1'][Object.CUBE] = camera1.get_cubes()
+    objects_found['rob1'][Object.CYLINDER] = camera1.get_cylinders()
 
-    rob1_num_cubes, rob1_num_cylinders = len(rob1_cubes), len(rob1_cylinders)
-
-    rob2_cubes, rob2_cylinders = camera2.get_shapes()
-    rob2_num_cubes, rob2_num_cylinders = len(rob2_cubes), len(rob2_cylinders)
+    objects_found['rob2'][Object.CUBE] = camera2.get_cubes()
+    objects_found['rob2'][Object.CYLINDER] = camera2.get_cylinders()
 
     # Determen witch robot should move its object first
-    if rob1_num_cylinders > rob2_num_cubes:
+    if len(objects_found['rob1'][Object.CYLINDER]) > len(objects_found['rob2'][Object.CUBE]):
         object_move = RobotPickUp.R2
     else:
         object_move = RobotPickUp.R1
@@ -187,7 +198,7 @@ def move3(rob: Robot, camera: Camera):
             object_move = RobotPickUp.NONE
             rob.move(rob.cords['idlePose'])
 
-            rob.object_move(rob.cords['object']['get'], rob.cords['object']['place'], stop_at_idle=False)
+            rob.move_object(rob.cords['object']['get'], rob.cords['object']['place'], stop_at_idle=False)
             rob.cords['object']['place'].y += cube['size'].y + 0.01
             rob.cords['object']['get'].y -= cube['size'].y
 
@@ -197,7 +208,7 @@ def move3(rob: Robot, camera: Camera):
             print(f'Object Move = {object_move}')
             object_move = RobotPickUp.flip(RobotPickUp(rob.name))
 
-            rob.object_move(rob.cords['object']['get'], rob.cords['object']['place'], stop_at_idle=False)
+            rob.move_object(rob.cords['object']['get'], rob.cords['object']['place'], stop_at_idle=False)
             rob.cords['object']['place'].y += cube['size'].y + 0.01
             rob.cords['object']['get'].y -= cube['size'].y
 
@@ -244,7 +255,58 @@ def move4(rob: Robot, camera: Camera):
 
 
 def move_simple(rob: Robot, camera: Camera):
-    pass
+    global object_Pick_Up, object_move, rob1, rob2, objects_found
+
+    rob.move(rob.cords['idlePose'])
+    rob.send_program(rq_open())
+
+    # Wait for both robots to reach idle state before beginning
+    while rob1.status == Status.MOVING and rob2.status == Status.MOVING:
+        pass
+
+    while termination_condition():
+        # Move objects from conveyor
+        if object_Pick_Up.value == rob.name:
+            with Conveyor.lock:
+                for i in range(0, Conveyor.number_of_items_on_belt):
+                    conveyor_pos = rob.conveyor_stack.prev().to_vec3() + rob.cords['conveyor'].z
+
+                    rob.move_object(conveyor_pos, rob.place_stack.next().to_vec3())
+
+                object_Pick_Up = RobotPickUp.NONE
+
+                rob.move(rob.cords['idlePose'])
+
+        # Move objects to conveyor
+        if object_move.value == rob.name and objects_found[rob.name][rob.object_move] > 0:
+            with Conveyor.lock:
+                obj_found: list[Vec2] = objects_found[rob.name][rob.object_move]
+
+                for i, o in enumerate(obj_found):
+                    if i > 4:
+                        break
+
+                    conveyor_pos = rob.conveyor_stack.next().to_vec3()
+                    conveyor_pos.z = conveyor_pos.z + rob.cords['conveyor'].z
+
+                    if rob.name == 'rob1':
+                        rob2.conveyor_stack.next()
+                    else:
+                        rob1.conveyor_stack.next()
+
+                    rob.move_object(o, conveyor_pos, rob.object_move)
+                    Conveyor.number_of_items_on_belt += 1
+
+                rob.conveyor_stack.reset()
+
+                rob.move(rob.cords['idlePose'])
+
+        # Sort own objects if other robot is moving objects to conveyor, or the conveyor is not needed
+        if object_move.value != rob.name and object_move != RobotPickUp.NONE and Conveyor.status == Status.READY:
+            cubes = camera.get_cubes()
+            if len(cubes) > 0:
+                rob.move_object(cubes[0], rob.place_stack.next(), rob.object_store)
+                rob.move(rob.cords['idePose'])
 
 
 def test_move(rob: Robot, camera: Camera):
