@@ -7,12 +7,6 @@ class Vec2:
     x: float
     y: float
 
-    def __add__(self, other):
-        return Vec2(self.x + other.x, self.y + other.y)
-
-    def __mul__(self, other):
-        return Vec2(self.x * other.x, self.y * other.y)
-
     def to_tuple(self) -> tuple[float, float]:
         return self.x, self.y
 
@@ -22,22 +16,19 @@ class Vec2:
     def to_pose(self):
         return Pose(self.x, self.y, 0.0)
 
+    def __add__(self, other):
+        return Vec2(self.x + other.x, self.y + other.y)
+
+    def __sub__(self, other):
+        return Vec2(self.x - other.x, self.y - other.y)
+
+    def __mul__(self, other):
+        return Vec2(self.x * other.x, self.y * other.y)
+
 
 @dataclass
 class Vec3(Vec2):
     z: float
-
-    def __add__(self, other):
-        if type(other) is Vec2:
-            return Vec3(self.x + other.x, self.y + other.y, self.z)
-        else:
-            return Vec3(self.x + other.x, self.y + other.y, self.z + other.z)
-
-    def __mul__(self, other):
-        if type(other) is Vec2:
-            return Vec3(self.x * other.x, self.y * other.y, self.z)
-        else:
-            return Vec3(self.x * other.x, self.y * other.y, self.z * other.z)
 
     def to_tuple(self) -> tuple[float, float, float]:
         return self.x, self.y, self.z
@@ -47,6 +38,24 @@ class Vec3(Vec2):
 
     def to_pose(self):
         return Pose(self.x, self.y, self.z)
+
+    def __add__(self, other):
+        if type(other) is Vec2:
+            return Vec3(self.x + other.x, self.y + other.y, self.z)
+        else:
+            return Vec3(self.x + other.x, self.y + other.y, self.z + other.z)
+
+    def __sub__(self, other):
+        if type(other) is Vec2:
+            return Vec3(self.x - other.x, self.y - other.y, self.z)
+        else:
+            return Vec3(self.x - other.x, self.y - other.y, self.z - other.z)
+
+    def __mul__(self, other):
+        if type(other) is Vec2:
+            return Vec3(self.x * other.x, self.y * other.y, self.z)
+        else:
+            return Vec3(self.x * other.x, self.y * other.y, self.z * other.z)
 
 
 @dataclass
@@ -121,7 +130,8 @@ class Status(Enum):
     NOT_READY = 0
     READY = 1
     MOVING = 2
-    ERROR = 3
+    WAIT = 3
+    ERROR = 4
 
 
 if __name__ == '__main__':
