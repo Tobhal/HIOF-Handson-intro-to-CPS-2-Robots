@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import urx
 import time
 
@@ -12,9 +14,13 @@ class Robot(urx.Robot):
 
     status = Status.NOT_READY
 
-    def __init__(self, host: str, name: str, cords: dict, use_rt=False, use_simulation=False):
+    def __init__(self, host: str, name: str, object_store: Object,
+                 cords: dict[str | Object, Pose | dict[str, Vec3] | dict[str, Vec3] | dict[str, Vec3]],
+                 use_rt=False, use_simulation=False):
         super().__init__(host, use_rt, use_simulation)
         self.name = name
+        self.object_store = object_store
+        self.object_move = Object.flip(object_store)
         self.cords = cords
         self.lock = Lock()
 
@@ -34,7 +40,7 @@ class Robot(urx.Robot):
 
     def pick_object(self, location: Pose, current_object=Object.CUBE):
         """
-        Pick up a object at a location.
+        Pick up an object at a location.
         Default to `CUBE` object
         """
         with self.lock:
@@ -146,7 +152,7 @@ class Robot(urx.Robot):
         Moves object form `pickPos` to the `conveyor` position.
         Default to `CUBE` object
         """
-        self.move_object(pick_pos, self.cords['conveyor'] + Vec3(0.0, 0.0, 0.001), current_object)
+        self.object_move(pick_pos, self.cords['conveyor'] + Vec3(0.0, 0.0, 0.001), current_object)
 
     def move_object_from_conveyor(self, current_object=Object.CUBE):
         """
@@ -156,7 +162,8 @@ class Robot(urx.Robot):
         conv.rx = 0.0
         conv.ry = 3.14
 
-        self.move_object(conv, self.cords['object']['place'], current_object)
+        self.object_move(conv, self.cords['object']['place'], current_object)
+        self.cords['object']['place'].y += object['size'].y + 0.01
 
         conv.rx = 2.2
         conv.ry = 2.2

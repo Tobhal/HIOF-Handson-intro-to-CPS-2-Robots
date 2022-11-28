@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 import urllib.request
-from typing import Optional
-
 import cv2
 import numpy as np
 
+from typing import Optional, NewType
 from robot import *
+
+
+Image = NewType('Image', any)
+
+
+class NumberToLarge(Exception):
+    pass
 
 
 class BankException(Exception):
@@ -39,74 +45,27 @@ class Camera:
         self.invert = invert
         self.camera_cut = camera_cut
         self.objects = objects
+
+        if camera_threshold not in range(0, 257):
+            raise NumberToLarge(f'camera_threshold needs to be in range 0..256, current value is {camera_threshold}')
+
         self.camera_threshold = camera_threshold
+
         # TODO: Actually ping the camera to see if it responds.
 
-    def locate_object(self) -> Optional[Vec2]:
-        """
-        Give the location of the current object. object referring to what object locator the camera is using at the
-        given time.
-
-        TODO: Verify that the `gRES` is returning valid coordinates. If it doesn't, ether return None.
-        """
-        # check for response
-        page = urllib.request.urlopen(f'http://{self.ip}/CmdChannel?TRIG')
-        time.sleep(2)
-
-        x, y = 0.0, 0.0
-
-        # Get coords
-        while x == 0.0 and y == 0.0:  # FIX: Temp fix for troubleshooting
-            print('ping camera')
-            page = urllib.request.urlopen(f'http://{self.ip}/CmdChannel?gRES')
-
-            # reads output from camera
-            coords = page.read().decode('utf-8')
-
-            if 'rgRES 0 No result available.' in coords:
-                raise NoResultException('No result available')
-
-            # splits output
-            # print(coords.split()[2])
-            error_code, obj, self.object_located, y, x = coords.split()[2].split(',')
-            self.witch_object = self.objects[int(obj)]
-
-        # print(f'witch:   {self.witch_object}')
-        # print(f'located: {self.object_located}')
-        print(f'x = {x}, y = {y}')
-
-        # NOTE: The X,Y coordinated on the camera might be Vec2(-Y, -X) or something.
-        # So they are inverted and flipped.
-
-        pos = Vec2((float(y)) / 1000, (float(x)) / 1000)
-
-        time.sleep(3)
-
-        return pos
-
-    def locate_object_2(self) -> Optional[Vec2]:
-        req = urllib.request.urlopen(f'http://{self.ip}/LiveImage.jpg')
-        arr = np.asarray(bytearray(req.read()), dtype=np.uint8)
-        img = cv2.imdecode(arr, -1)
-
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        _, threshold = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
-
-        contours, _ = cv2.findContours(threshold, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
-        i = 0
-
-        self.show_image(img)
-
-        return None
-
     @staticmethod
-    def show_image(image):
-        cv2.imshow('image', image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+    def show_image(image: Image | list[Image], wait=True) -> Image:
+        if type(image) is list:
+            for img in image:
+                cv2.imshow('image', img)
+        else:
+            cv2.imshow('image', image)
 
-    def get_image(self):
+        if wait:
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+
+    def get_image(self) -> Image:
         req = urllib.request.urlopen(f'http://{self.ip}/LiveImage.jpg')
         arr = np.asarray(bytearray(req.read()), dtype=np.uint8)
         img = cv2.imdecode(arr, -1)
@@ -120,16 +79,19 @@ class Camera:
 
         return img
 
+    def image_to_threshold(self, image: Image) -> Image:
+        return cv2.threshold(image, self.camera_threshold, 255, cv2.THRESH_BINARY)[1]
+
     def image_coords_to_robot_coords(self, x: int | float, y: int | float) -> tuple[float, float]:
         x = ((x + self.offset.x) * self.invert.x) * self.offset_scale.x
         y = ((y + self.offset.y) * self.invert.y) * self.offset_scale.y
 
         return x, y
 
-    def get_cubes(self) -> Optional[list[Vec2]]:
+    def get_cubes(self) -> list[Vec2]:
         img = self.get_image()
 
-        _, threshold = cv2.threshold(img, self.camera_threshold, 255, cv2.THRESH_BINARY)
+        threshold = self.image_to_threshold(img)
 
         contours, hierarchy = cv2.findContours(threshold, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -150,9 +112,9 @@ class Camera:
 
                 cubes.append(cube)
 
-        return cubes if len(cubes) > 0 else None
+        return cubes if len(cubes) > 0 else []
 
-    def get_cylinders(self) -> Optional[list[Vec2]]:
+    def get_cylinders(self) -> list[Vec2]:
         img = self.get_image()
         img = cv2.blur(img, (3, 3))
         circles = cv2.HoughCircles(img, cv2.HOUGH_GRADIENT, 1, 20,
@@ -174,7 +136,10 @@ class Camera:
 
                 cylinders.append(Vec2(b / 1000, a / 1000))
 
-        return cylinders if len(cylinders) > 0 else None
+        return cylinders if len(cylinders) > 0 else []
+
+    def get_shapes(self) -> tuple[Optional[list[Vec2]], Optional[list[Vec2]]]:
+        return self.get_cubes(), self.get_cylinders()
 
     def switch_object(self, bank: int):
         """
