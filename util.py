@@ -7,19 +7,37 @@ class Vec2:
     x: float
     y: float
 
-    def __add__(self, other):
-        return Vec2(self.x + other.x, self.y + other.y)
-
     def to_tuple(self) -> tuple[float, float]:
         return self.x, self.y
 
+    def to_vec3(self):
+        return Vec3(self.x, self.y, 0.0)
+
     def to_pose(self):
         return Pose(self.x, self.y, 0.0)
+
+    def __add__(self, other):
+        return Vec2(self.x + other.x, self.y + other.y)
+
+    def __sub__(self, other):
+        return Vec2(self.x - other.x, self.y - other.y)
+
+    def __mul__(self, other):
+        return Vec2(self.x * other.x, self.y * other.y)
 
 
 @dataclass
 class Vec3(Vec2):
     z: float
+
+    def to_tuple(self) -> tuple[float, float, float]:
+        return self.x, self.y, self.z
+
+    def to_vec2(self):
+        return Vec2(self.x, self.y)
+
+    def to_pose(self):
+        return Pose(self.x, self.y, self.z)
 
     def __add__(self, other):
         if type(other) is Vec2:
@@ -27,11 +45,17 @@ class Vec3(Vec2):
         else:
             return Vec3(self.x + other.x, self.y + other.y, self.z + other.z)
 
-    def to_tuple(self) -> tuple[float, float, float]:
-        return self.x, self.y, self.z
+    def __sub__(self, other):
+        if type(other) is Vec2:
+            return Vec3(self.x - other.x, self.y - other.y, self.z)
+        else:
+            return Vec3(self.x - other.x, self.y - other.y, self.z - other.z)
 
-    def to_pose(self):
-        return Pose(self.x, self.y, self.z)
+    def __mul__(self, other):
+        if type(other) is Vec2:
+            return Vec3(self.x * other.x, self.y * other.y, self.z)
+        else:
+            return Vec3(self.x * other.x, self.y * other.y, self.z * other.z)
 
 
 @dataclass
@@ -46,6 +70,12 @@ class Pose(Vec3):
         self.rx = rx
         self.ry = ry
         self.rz = rz
+
+    def to_vec2(self):
+        return Vec2(self.x, self.y)
+
+    def to_vec3(self):
+        return Vec3(self.x, self.y, self.z)
 
     def to_tuple(self) -> tuple:
         return self.x, self.y, self.z, self.rx, self.ry, self.rz
@@ -77,16 +107,32 @@ class RobotPickUp(Enum):
 
 
 class Object(Enum):
-    CUBE = 0
-    CYLINDER = 1
+    CUBE = {
+        'over': Vec3(0.0, 0.0, 0.1),
+        'at': Vec3(0.0, 0.0, 0.01),
+        'size': Vec3(0.05, 0.05, 0.05)
+    }
+    CYLINDER = {
+        'over': Vec3(0.0, 0.0, 0.1),
+        'at': Vec3(0.0, 0.0, 0.01),
+        'width': Vec3(0.06, 0.06, 0.07)
+    }
+
+    @staticmethod
+    def flip(obj):
+        return Object.CUBE if type(obj) is Object.CYLINDER else Object.CYLINDER
+
+    def __getitem__(self, item):
+        return self.value[item]
 
 
 class Status(Enum):
     NOT_READY = 0
     READY = 1
     MOVING = 2
-    ERROR = 3
+    WAIT = 3
+    ERROR = 4
 
 
 if __name__ == '__main__':
-    pass
+    cube = Object.CUBE

@@ -1,21 +1,30 @@
+from __future__ import annotations
+
 import urx
 import time
 
 from Gripper import *
 from util import Status, Vec2, Vec3, Pose, Object
+from stack import Stack
 from threading import Lock
 
 
 class Robot(urx.Robot):
-    a = 0.5
-    v = 0.8
+    a, v = 0.5, 0.8
 
     status = Status.NOT_READY
 
-    def __init__(self, host: str, name: str, cords: dict, use_rt=False, use_simulation=False):
+    def __init__(self, host: str, name: str, object_store: Object,
+                 cords: dict[str | Object, Pose | dict[str, Vec3] | dict[str, Vec3] | dict[str, Vec3]],
+                 place_stack: Stack, conveyor_stack: Stack,
+                 use_rt=False, use_simulation=False):
         super().__init__(host, use_rt, use_simulation)
         self.name = name
+        self.object_store = object_store
+        self.object_move = Object.flip(object_store)
         self.cords = cords
+        self.place_stack = place_stack
+        self.conveyor_stack = conveyor_stack
         self.lock = Lock()
 
         # activates gripper. only needed once per power cycle
@@ -34,7 +43,7 @@ class Robot(urx.Robot):
 
     def pick_object(self, location: Pose, current_object=Object.CUBE):
         """
-        Pick up a object at a location.
+        Pick up an object at a location.
         Default to `CUBE` object
         """
         with self.lock:
@@ -105,7 +114,7 @@ class Robot(urx.Robot):
 
         open_close()
 
-    def move(self, location: Pose, move_wait=True):
+    def move(self, location: Vec2 | Vec3 | Pose, move_wait=True):
         """
         Function for moving robot using moveJ.
         Acquires the thread lock for just the movement of the robot
@@ -127,7 +136,7 @@ class Robot(urx.Robot):
 
         self.status = Status.READY
 
-    def move_object(self, from_pos: Vec3, to_pos: Vec3,
+    def move_object(self, from_pos: Vec3 | Vec2, to_pos: Vec3 | Vec2,
                     current_object=Object.CUBE, stop_at_idle=True, wait_at_idle=False
                     ):
         """
@@ -146,7 +155,7 @@ class Robot(urx.Robot):
         Moves object form `pickPos` to the `conveyor` position.
         Default to `CUBE` object
         """
-        self.move_object(pick_pos, self.cords['conveyor'] + Vec3(0.0, 0.0, 0.001), current_object)
+        self.object_move(pick_pos, self.cords['conveyor'] + Vec3(0.0, 0.0, 0.001), current_object)
 
     def move_object_from_conveyor(self, current_object=Object.CUBE):
         """
@@ -156,7 +165,8 @@ class Robot(urx.Robot):
         conv.rx = 0.0
         conv.ry = 3.14
 
-        self.move_object(conv, self.cords['object']['place'], current_object)
+        self.object_move(conv, self.cords['object']['place'], current_object)
+        self.cords['object']['place'].y += object['size'].y + 0.01
 
         conv.rx = 2.2
         conv.ry = 2.2

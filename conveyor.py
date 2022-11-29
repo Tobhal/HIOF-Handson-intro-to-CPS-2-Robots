@@ -29,6 +29,8 @@ class Conveyor:
     lock: Lock = None
     status = Status.READY
 
+    number_of_items_on_belt = 0
+
     @staticmethod
     def get_distance(sensor: int) -> Optional[float]:
         """
