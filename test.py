@@ -3,20 +3,20 @@ import numpy as np
 import cv2
 
 
-req = urllib.request.urlopen(f'http://10.1.1.8/LiveImage.jpg')
+req = urllib.request.urlopen(f'http://10.1.1.7/LiveImage.jpg')
 # noinspection DuplicatedCode
 arr = np.asarray(bytearray(req.read()), dtype=np.uint8)
 img = cv2.imdecode(arr, -1)
 
 # img = cv2.imread('response camera 7 2.jpeg')
 
- # camera 10.1.1.8
+""" # camera 10.1.1.8
 x, y = 14, 191
 h, w = 450, 435
 """ # camera 10.1.1.7
-x, y = 0, 0
+x, y = 0, 100
 h, w = 450, 477
-"""
+
 
 img = img[x:w, y:h]
 
@@ -25,7 +25,7 @@ img = img[x:w, y:h]
 gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
 # Detect cubes
-_, threshold = cv2.threshold(gray, 95, 255, cv2.THRESH_BINARY)
+_, threshold = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
 # threshold = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 11, 2)
 
 contours, hierarchy = cv2.findContours(threshold, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -166,7 +166,7 @@ for contour in contours:
 
 # displaying the image after drawing contours
 cv2.imshow('image', img)
-cv2.imshow('threshold', threshold)
+# cv2.imshow('threshold', threshold)
 
 cv2.waitKey(0)
 cv2.destroyAllWindows()

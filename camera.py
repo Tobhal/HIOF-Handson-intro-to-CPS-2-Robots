@@ -108,7 +108,7 @@ class Camera:
 
                 x, y = self.image_coords_to_robot_coords(x, y)
 
-                cube = Vec2((y + (h / 2)) / 1000, (x + (w / 2)) / 1000)
+                cube = Vec2(((y + (h / 2)) * self.invert.x) / 1000, ((x + (w / 2)) * self.invert.y) / 1000)
 
                 cubes.append(cube)
 

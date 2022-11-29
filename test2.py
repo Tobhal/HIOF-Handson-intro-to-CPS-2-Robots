@@ -12,13 +12,13 @@ camera2 = Camera('10.1.1.7', Vec2(-638, -240), Vec2(0.91, 0.91), Vec2(1, 1),
 """Camera for robot 2"""
 
 if __name__ == '__main__':
-    cam = camera2
+    cam = camera1
 
     img = cam.get_image()
     thresh = cam.image_to_threshold(img)
 
     cam.show_image(img)
-    # cam.show_image(thresh)
+    cam.show_image(thresh)
 
     cubes = cam.get_cubes()
     if cubes:

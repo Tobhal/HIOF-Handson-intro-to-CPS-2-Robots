@@ -12,14 +12,13 @@ from conveyor import Conveyor
 from stack import Stack
 from threading import Thread
 
-# TODO: The robot is missing the correct block with 90 deg, like what happened with cam2 last time
-camera1 = Camera('10.1.1.8', Vec2(240, -170), Vec2(1.08, 1.08), Vec2(-1, -1),
-                 (Vec2(14, 191), Vec2(450, 325)), 175,
+camera1 = Camera('10.1.1.8', Vec2(215, -170), Vec2(1.05, 0.95), Vec2(1, -1),
+                 (Vec2(14, 191), Vec2(450, 325)), 250,
                  [Object.CUBE, Object.CYLINDER])
 """Camera for robot 1"""
 
-camera2 = Camera('10.1.1.7', Vec2(-638, -240), Vec2(0.91, 0.91), Vec2(1, 1),
-                 (Vec2(0, 0), Vec2(450, 477)), 100,
+camera2 = Camera('10.1.1.7', Vec2(-480, -240), Vec2(1.1, 1.3), Vec2(1, 1),
+                 (Vec2(0, 100), Vec2(450, 477)), 100,
                  [Object.CUBE, Object.CYLINDER])
 """Camera for robot 2"""
 
@@ -32,7 +31,7 @@ cube = {
 cylinder = {  # TODO: Change to correct measurements
     'over': Vec3(0.0, 0.0, 0.1),
     'at': Vec3(0.0, 0.0, 0.01),
-    'width': Vec3(0.06, 0.06, 0.07)
+    'size': Vec3(0.06, 0.06, 0.07)
 }
 
 rob1_cords = {
@@ -40,7 +39,7 @@ rob1_cords = {
     'idlePose': Pose(0.25, -0.12, 0.09),
     'object': {
         'get': Vec3(0.00564, -0.32577, 0.0),
-        'place': Vec3(-0.293, -0.410, 0.0)
+        'place': Vec3(-0.293, -0.18, 0.0)
     },
     Object.CUBE: cube,
     Object.CYLINDER: cylinder
@@ -51,7 +50,7 @@ rob2_cords = {
     'idlePose': Pose(-0.25, -0.12, 0.09),
     'object': {
         'get': Vec3(0.00773, -0.31881, 0.0),
-        'place': Vec3(0.27, -0.42, 0.0),
+        'place': Vec3(0.27, -0.18, 0.0),
     },
     Object.CUBE: cube,
     Object.CYLINDER: cylinder
@@ -62,10 +61,11 @@ end_program = False
 rob1: Optional[Robot] = None
 rob2: Optional[Robot] = None
 
-rob1_place_stack = Stack(rob1_cords['object']['place'], Vec2(-1.0, 0.0), 2, Object.CUBE)
+rob1_place_stack = Stack(rob1_cords['object']['place'], Vec2(0.0, -1.0), 2, Object.CUBE)
 rob1_conveyor_stack = Stack(rob1_cords['conveyor'], Vec2(1.0, 0.0), 1, Object.CYLINDER)
 
-rob2_place_stack = Stack(rob2_cords['object']['place'], Vec2(-1.0, 0.0), 2, Object.CYLINDER)
+# TODO: Change Object to Cylinder
+rob2_place_stack = Stack(rob2_cords['object']['place'], Vec2(0.0, -1.0), 2, Object.CUBE)
 rob2_conveyor_stack = Stack(rob2_cords['conveyor'], Vec2(1.0, 0.0), 1, Object.CUBE)
 
 # noinspection PyBroadException
@@ -105,6 +105,7 @@ objects_found = {
         Object.CYLINDER: []
     }
 }
+
 
 def termination_condition():
     return end_program or counter < 2
@@ -271,6 +272,11 @@ def move_simple(rob: Robot, camera: Camera):
                 for i in range(0, Conveyor.number_of_items_on_belt):
                     conveyor_pos = rob.conveyor_stack.prev().to_vec3() + rob.cords['conveyor'].z
 
+                    if rob.name == 'rob1':
+                        rob2.conveyor_stack.prev()
+                    else:
+                        rob1.conveyor_stack.prev()
+
                     rob.move_object(conveyor_pos, rob.place_stack.next().to_vec3())
 
                 object_Pick_Up = RobotPickUp.NONE
@@ -309,7 +315,7 @@ def move_simple(rob: Robot, camera: Camera):
                 rob.move(rob.cords['idePose'])
 
 
-def test_move(rob: Robot, camera: Camera):
+def move_above_objects(rob: Robot, camera: Camera):
     rob.move(rob.cords['idlePose'])
     rob.send_program(rq_close())
 
@@ -322,7 +328,7 @@ def test_move(rob: Robot, camera: Camera):
         for cube_obj in cubes:
             print(cube_obj)
 
-            rob.move(cube_obj.to_pose() + Vec3(0.0, 0.0, 0.09))
+            rob.move(cube_obj.to_pose() + Vec3(0.0, 0.0, 0.06))
 
     print(f'num of cylinders = {len(cylinders)}')
 
@@ -334,6 +340,24 @@ def test_move(rob: Robot, camera: Camera):
 
     # rob.pick_object(object_pos.to_pose())
     # rob.place_object(object_pos.to_pose())
+
+    rob.move(rob.cords['idlePose'])
+
+
+def move_test(rob: Robot, camera: Camera):
+    global objects_found
+
+    rob.move(rob.cords['idlePose'])
+    rob.send_program(rq_open())
+
+    # Wait for both robots to reach idle state before beginning
+    while rob1.status == Status.MOVING or rob2.status == Status.MOVING:
+        pass
+
+    cubes = camera.get_cubes()
+
+    for c in cubes:
+        rob.move_object(c, rob.place_stack.next())
 
     rob.move(rob.cords['idlePose'])
 
@@ -438,7 +462,8 @@ if __name__ == '__main__':
     print('Program start')
 
     try:
-        main(move4, [(rob1, camera1), (rob2, camera2)], conveyor_move, pre_run1)
+        # main(test_move, [(rob1, camera1), (rob2, camera2)], conveyor_move, pre_run1)
+        main(move_test, [(rob1, camera1), (rob2, camera2)])
     except KeyboardInterrupt:
         Conveyor.stop()
 

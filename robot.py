@@ -114,7 +114,7 @@ class Robot(urx.Robot):
 
         open_close()
 
-    def move(self, location: Pose, move_wait=True):
+    def move(self, location: Vec2 | Vec3 | Pose, move_wait=True):
         """
         Function for moving robot using moveJ.
         Acquires the thread lock for just the movement of the robot
