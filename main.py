@@ -199,24 +199,33 @@ def move2(rob: Robot, camera: Camera):
     while termination_condition():
         # Move objects to conveyor
         if object_move.value == rob.name:
-            rob.move_object_to_conveyor(objects_found[rob.name][rob.object_move][0].to_vec3(), rob.object_move)
+            number_of_objects = len(objects_found[rob.name][rob.object_move])
 
-            if rob.name == 'rob1':
-                rob2.conveyor_stack.next()
-            else:
-                rob1.conveyor_stack.next()
+            for obj, i in enumerate(objects_found[rob.name][rob.object_move]):
+                if i > 4:
+                    break
+
+                rob.move_object_to_conveyor(objects_found[rob.name][rob.object_move][i].to_vec3(), rob.object_move)
+                Conveyor.number_of_items_on_belt += 1
+
+                if rob.name == 'rob1':
+                    rob2.conveyor_stack.next()
+                else:
+                    rob1.conveyor_stack.next()
 
             object_move = RobotPickUp.NONE
             rob.move(rob.cords['idlePose'])
 
         # Move object form conveyor / sort the blocks on the conveyor
         if object_Pick_Up.value == rob.name:
-            rob.move(rob.cords['conveyor'] + Vec3(0.0, 0.1, 0.1))
+            for i in range(0, Conveyor.number_of_items_on_belt + 1):
+                rob.move(rob.conveyor_stack.prev() + Vec3(0.0, 0.1, 0.1))
 
-            rob.move_object_from_conveyor()
+                rob.move_object_from_conveyor()
+
+                rob.move(rob.cords['idlePose'])
 
             object_Pick_Up = RobotPickUp.NONE
-            rob.move(rob.cords['idlePose'])
             rob.status = Status.READY
 
         # Sort own objects while the conveyor is not moving
