@@ -114,13 +114,13 @@ class Object(Enum):
     }
     CYLINDER = {
         'over': Vec3(0.0, 0.0, 0.1),
-        'at': Vec3(0.0, 0.0, 0.01),
-        'width': Vec3(0.06, 0.06, 0.07)
+        'at': Vec3(0.0, 0.0, 0.02),
+        'size': Vec3(0.06, 0.06, 0.075)
     }
 
     @staticmethod
     def flip(obj):
-        return Object.CUBE if type(obj) is Object.CYLINDER else Object.CYLINDER
+        return Object.CUBE if type(obj) is Object.CYLINDER else Object.CUBE
 
     def __getitem__(self, item):
         return self.value[item]
@@ -132,6 +132,12 @@ class Status(Enum):
     MOVING = 2
     WAIT = 3
     ERROR = 4
+
+
+class Direction(Enum):
+    LEFT = 0
+    RIGHT = 1
+    NONE = 3
 
 
 if __name__ == '__main__':

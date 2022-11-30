@@ -134,7 +134,7 @@ class Camera:
 
                 a, b = self.image_coords_to_robot_coords(a, b)
 
-                cylinders.append(Vec2(b / 1000, a / 1000))
+                cylinders.append(Vec2((b / 1000) * self.invert.x, (a / 1000) * self.invert.y))
 
         return cylinders if len(cylinders) > 0 else []
 

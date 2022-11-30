@@ -10,13 +10,12 @@ img = cv2.imdecode(arr, -1)
 
 # img = cv2.imread('response camera 7 2.jpeg')
 
-""" # camera 10.1.1.8
-x, y = 14, 191
-h, w = 450, 435
-""" # camera 10.1.1.7
-x, y = 0, 100
-h, w = 450, 477
-
+"""# camera 10.1.1.8
+x, y = 0, 160
+h, w = 540, 450
+"""  # camera 10.1.1.7
+x, y = 0, 50
+h, w = 400, 450
 
 img = img[x:w, y:h]
 
@@ -38,8 +37,6 @@ for cnt in contours:
 
         if w < 25 or h < 25:
             continue
-
-        print('wh', w, h)
 
         print(int(x + (w / 2)), int(y + (h / 2)))
 

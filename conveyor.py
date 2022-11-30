@@ -1,9 +1,12 @@
 import operator
+import time
+from threading import Lock
 from typing import Optional
 
 import requests
 
-from robot import *
+from robot import Robot
+from util import Status, Direction
 
 
 class Conveyor:
@@ -15,7 +18,7 @@ class Conveyor:
     stop_speed = 0.025
     """Speed before detection from sensor 1 and 4"""
 
-    wait_time = 1
+    wait_time = 1.5
     """Time to before starting conveyor, normally after robot have placed object"""
 
     wait_after_detect_left = 3
@@ -28,6 +31,7 @@ class Conveyor:
     robot: Robot = None
     lock: Lock = None
     status = Status.READY
+    move_direction = Direction.NONE
 
     number_of_items_on_belt = 0
 
@@ -55,6 +59,7 @@ class Conveyor:
         """
         Moves the conveyor to the right
         """
+        Conveyor.move_direction = Direction.RIGHT
         with Conveyor.lock:
             Conveyor.robot.set_digital_out(5, 1)
             # allow digital out 5 to stay active for 0.1s
@@ -67,6 +72,7 @@ class Conveyor:
         """
         Moves the conveyor to the left
         """
+        Conveyor.move_direction = Direction.LEFT
         with Conveyor.lock:
             Conveyor.robot.set_digital_out(6, 1)
             # allow digital out 6 to stay active for 0.1s
@@ -85,6 +91,8 @@ class Conveyor:
             time.sleep(0.1)
             # set digital out back to 0
             Conveyor.robot.set_digital_out(7, 0)
+
+        Conveyor.move_direction = Direction.NONE
 
     @staticmethod
     def set_speed(voltage: float):

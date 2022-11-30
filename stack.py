@@ -45,6 +45,9 @@ class Stack:
     def reset(self):
         self.coords = deepcopy(self.original_coords)
 
+    def peak(self) -> Vec3:
+        return self.prev_positions[-1]
+
 
 if __name__ == '__main__':
     stack = Stack(Vec2(0.27, -0.42), Vec2(1.0, 0.0), 2, Object.CUBE)
