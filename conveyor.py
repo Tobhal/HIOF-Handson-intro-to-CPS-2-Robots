@@ -61,6 +61,7 @@ class Conveyor:
         """
         Conveyor.move_direction = Direction.RIGHT
         with Conveyor.lock:
+            print('with lock')
             Conveyor.robot.set_digital_out(5, 1)
             # allow digital out 5 to stay active for 0.1s
             time.sleep(0.1)
@@ -74,6 +75,7 @@ class Conveyor:
         """
         Conveyor.move_direction = Direction.LEFT
         with Conveyor.lock:
+            print('with lock')
             Conveyor.robot.set_digital_out(6, 1)
             # allow digital out 6 to stay active for 0.1s
             time.sleep(0.1)
