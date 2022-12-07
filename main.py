@@ -331,27 +331,26 @@ def move_simple(rob: Robot, camera: Camera):
 
         # Move objects to conveyor
         if object_move.value == rob.name and objects_found[rob.name][rob.object_move] > 0:
-            with Conveyor.lock:
-                obj_found: list[Vec2] = objects_found[rob.name][rob.object_move]
+            obj_found: list[Vec2] = objects_found[rob.name][rob.object_move]
 
-                for i, o in enumerate(obj_found):
-                    if i > 4:
-                        break
+            for i, o in enumerate(obj_found):
+                if i > 4:
+                    break
 
-                    conveyor_pos = rob.conveyor_stack.next().to_vec3()
-                    conveyor_pos.z = conveyor_pos.z + rob.cords['conveyor'].z
+                conveyor_pos = rob.conveyor_stack.next().to_vec3()
+                conveyor_pos.z = conveyor_pos.z + rob.cords['conveyor'].z
 
-                    if rob.name == 'rob1':
-                        rob2.conveyor_stack.next()
-                    else:
-                        rob1.conveyor_stack.next()
+                if rob.name == 'rob1':
+                    rob2.conveyor_stack.next()
+                else:
+                    rob1.conveyor_stack.next()
 
-                    rob.move_object(o, conveyor_pos, rob.object_move)
-                    Conveyor.number_of_items_on_belt += 1
+                rob.move_object(o, conveyor_pos, rob.object_move)
+                Conveyor.number_of_items_on_belt += 1
 
-                rob.conveyor_stack.reset()
+            rob.conveyor_stack.reset()
 
-                rob.move(rob.cords['idlePose'])
+            rob.move(rob.cords['idlePose'])
 
         # Sort own objects if other robot is moving objects to conveyor, or the conveyor is not needed
         if object_move.value != rob.name and object_move != RobotPickUp.NONE and Conveyor.status == Status.READY:
@@ -497,8 +496,8 @@ def conveyor_move():
 
 # Other functions
 def main(
-        move_func: Callable[[Robot, Camera], None],
-        robots: list[tuple[Robot, Camera]],
+        move_func: Callable[[Robot, Camera], None] = None,
+        robots: list[tuple[Robot, Camera]] = None,
         conveyor_func: Callable[[], None] = None,
         pre_run: Callable[[], None] = None):
     if pre_run:
@@ -506,8 +505,9 @@ def main(
 
     threads: list[Thread] = list()
 
-    for rob in robots:
-        threads.append(Thread(target=move_func, args=(rob[0], rob[1],)))
+    if move_func and robots:
+        for rob in robots:
+            threads.append(Thread(target=move_func, args=(rob[0], rob[1],)))
 
     if conveyor_func:
         threads.append(Thread(target=conveyor_func))
@@ -522,10 +522,13 @@ def main(
 if __name__ == '__main__':
     print('Program start')
 
+    rob2.set_digital_out(7, 0)  # Make sure the conveyor stop is low before starting.
+
     try:
         # main(test_move, [(rob1, camera1), (rob2, camera2)], conveyor_move, pre_run1)
         # main(move_above_objects, [(rob2, camera2)])
         main(move1, [(rob1, camera1), (rob2, camera2)], conveyor_move, pre_run2)
+        # main(conveyor_func=conveyor_move)
     except KeyboardInterrupt:
         Conveyor.stop()
 

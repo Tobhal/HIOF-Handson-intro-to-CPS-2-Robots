@@ -167,8 +167,6 @@ class Robot(urx.Robot):
         self.place_object(self.conveyor_stack.next().to_vec3())
         self.move(self.cords['conveyor'].to_vec3() + Vec3(0.0, 0.1, 0.1))
 
-        time.sleep(1)
-
         self.move(self.cords['idlePose'])
 
     def move_object_from_conveyor(self, current_object=Object.CUBE):
