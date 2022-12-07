@@ -1,25 +1,31 @@
 import urllib.request
+from typing import Optional
+
 import numpy as np
 import cv2
 
 
-req = urllib.request.urlopen(f'http://10.1.1.7/LiveImage.jpg')
-# noinspection DuplicatedCode
-arr = np.asarray(bytearray(req.read()), dtype=np.uint8)
-img = cv2.imdecode(arr, -1)
+def get_image(camera: int, file_path: Optional[str] = None):
+    if file_path:
+        img = cv2.imread(file_path)
+    else:
+        req = urllib.request.urlopen(f'http://10.1.1.{camera}/LiveImage.jpg')
+        # noinspection DuplicatedCode
+        arr = np.asarray(bytearray(req.read()), dtype=np.uint8)
+        img = cv2.imdecode(arr, -1)
 
-# img = cv2.imread('response camera 7 2.jpeg')
+    x, y, h, w = 0, 0, 0, 0
 
-"""# camera 10.1.1.8
-x, y = 0, 160
-h, w = 540, 450
-"""  # camera 10.1.1.7
-x, y = 0, 50
-h, w = 400, 450
+    if camera == 8:
+        x, y = 0, 160
+        h, w = 540, 450
+    elif camera == 7:
+        x, y = 0, 50
+        h, w = 400, 450
+    return img[x:w, y:h]
 
-img = img[x:w, y:h]
 
-# img = bg_remove(img)
+img = get_image(7)
 
 gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
