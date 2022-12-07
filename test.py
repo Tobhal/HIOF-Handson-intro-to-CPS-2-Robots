@@ -30,7 +30,7 @@ img = get_image(7)
 gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
 # Detect cubes
-_, threshold = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
+_, threshold = cv2.threshold(gray, 25, 255, cv2.THRESH_BINARY)
 # threshold = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 11, 2)
 
 contours, hierarchy = cv2.findContours(threshold, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -80,96 +80,12 @@ if circles is not None:
         img = cv2.circle(img, (int(a), int(b)), radius=r, color=(0, 255, 0), thickness=2)
         threshold = cv2.circle(threshold, (int(a), int(b)), radius=2, color=(0, 255, 0), thickness=-1)
 
-""" Camera 8
-points = [
-    (57, -294),
-    (56, -394),
-    (-40, -394)
-]
-points = [
-    (-205, -255),
-    (-187, -464),
-    (105, -465)
-]
-
-"""
-"""
-
-print()
-print()
-print()
-
-img = cv2.circle(img, (10, 10), radius=2, color=(0, 0, 255), thickness=1)
-
-for point in points:
-    x, y = point
-
-    x = int(x + (41 / 2))
-    y = int(y + (41 / 2))
-
-    x += 200
-    y += 560
-
-    x *= -1
-    y *= -1
-
-    x *= -1.09
-    y *= -1.09
-
-    print(x, y, '\n')
-
-    img = cv2.circle(img, (int(y), int(x)), radius=2, color=(0, 0, 255), thickness=2)
-"""
-"""
-i = 0
-# list for storing names of shapes
-for contour in contours:
-
-    # here we are ignoring first counter because
-    # findcontour function detects whole image as shape
-    if i == 0:
-        i = 1
-        continue
-
-    # cv2.approxPloyDP() function to approximate the shape
-    approx = cv2.approxPolyDP(
-        contour, 0.01 * cv2.arcLength(contour, True), True
-    )
-
-    # using drawContours() function
-    cv2.drawContours(img, [contour], 0, (0, 0, 255), 5)
-
-    x = 0
-    y = 0
-
-    # finding center point of shape
-    M = cv2.moments(contour)
-    if M['m00'] != 0.0:
-        x = int(M['m10'] / M['m00'])
-        y = int(M['m01'] / M['m00'])
-
-    # putting shape name at center of each shape
-    if len(approx) == 3:
-        cv2.putText(img, 'Triangle', (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-
-    elif len(approx) == 4:
-        cv2.putText(img, 'Quadrilateral', (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-
-    elif len(approx) == 5:
-        cv2.putText(img, 'Pentagon', (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-
-    elif len(approx) == 6:
-        cv2.putText(img, 'Hexagon', (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-
-    else:
-        cv2.putText(img, 'circle', (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-"""
 
 # img2 = camera.get_cubes()
 
 # displaying the image after drawing contours
-cv2.imshow('image', img)
-# cv2.imshow('threshold', threshold)
+# cv2.imshow('image', img)
+cv2.imshow('threshold', threshold)
 
 cv2.waitKey(0)
 cv2.destroyAllWindows()

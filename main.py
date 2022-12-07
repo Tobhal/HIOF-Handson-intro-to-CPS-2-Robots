@@ -14,11 +14,11 @@ from threading import Thread
 
 # TODO: Needs more tuning
 camera1 = Camera(ip='10.1.1.8',
-                 offsets=Vec2(145, -180),
-                 offset_scale=Vec2(1.1, 1.11),
+                 offsets=Vec2(140, -180),
+                 offset_scale=Vec2(1.2, 1.13),
                  invert=Vec2(1, -1),
                  camera_cut=(Vec2(0, 160), Vec2(540, 450)),
-                 camera_threshold=100,
+                 camera_threshold=25,
                  objects=[Object.CUBE, Object.CYLINDER])
 """Camera for robot 1"""
 
@@ -27,7 +27,7 @@ camera2 = Camera(ip='10.1.1.7',
                  offset_scale=Vec2(1.14, 1.2),
                  invert=Vec2(1, 1),
                  camera_cut=(Vec2(0, 50), Vec2(400, 450)),
-                 camera_threshold=100,
+                 camera_threshold=25,
                  objects=[Object.CUBE, Object.CYLINDER])
 """Camera for robot 2"""
 
@@ -36,7 +36,7 @@ rob1_cords = {
     'idlePose': Pose(0.25, -0.12, 0.09),
     'object': {
         'get': Vec3(0.00564, -0.32577, 0.0),
-        'place': Vec3(-0.293, -0.18, 0.005)
+        'place': Vec3(-0.293, -0.20, 0.005)
     },
     Object.CUBE: Object.CUBE,
     Object.CYLINDER: Object.CYLINDER
@@ -170,17 +170,20 @@ def pre_run2():
     while rob1.status == Status.MOVING and rob2.status == Status.MOVING:
         pass
 
-    objects_found['rob1'][Object.CUBE] = camera1.get_cubes()
-    objects_found['rob1'][Object.CYLINDER] = camera1.get_cylinders()
+    objects_found['rob1'][rob1.object_move] = camera1.get_cubes()
+    objects_found['rob1'][rob1.object_store] = camera1.get_cylinders()
 
-    objects_found['rob2'][Object.CUBE] = camera2.get_cubes()
-    objects_found['rob2'][Object.CYLINDER] = camera2.get_cylinders()
+    objects_found['rob2'][rob2.object_move] = camera2.get_cubes()
+    objects_found['rob2'][rob2.object_store] = camera2.get_cylinders()
 
-    if len(objects_found['rob1'][Object.CUBE]) > len(objects_found['rob2'][Object.CUBE]):
-        print(f'Rob 1 move: {len(objects_found["rob1"][Object.CUBE])}')
+    if len(objects_found['rob1'][rob1.object_move]) == 0 and len(objects_found['rob2'][rob2.object_move]) == 0:
+        print(f'No objects to move')
+        object_move = RobotPickUp.NONE
+    elif len(objects_found['rob1'][rob1.object_move]) > len(objects_found['rob2'][rob2.object_move]):
+        print(f'Rob 1 move object: {rob1.object_move.name} {len(objects_found["rob1"][rob1.object_move])}')
         object_move = RobotPickUp.R1
     else:
-        print(f'Rob 2 move: {len(objects_found["rob1"][Object.CUBE])}')
+        print(f'Rob 2 move object: {rob2.object_move.name} {len(objects_found["rob2"][rob2.object_move])}')
         object_move = RobotPickUp.R2
 
 
@@ -272,12 +275,12 @@ def move2(rob: Robot, camera: Camera):
 
         # Sort own objects while the conveyor is not moving
         elif object_move.value != rob.name and Conveyor.status != Status.MOVING and rob.status == Status.READY:
+            print(f'{rob.name}: Sort own block')
             objects_found[rob.name][Object.CUBE] = camera.get_cubes()
             objects_found[rob.name][Object.CYLINDER] = camera.get_cylinders()
 
             # If there are any objects to store, store them
             if len(objects_found[rob.name][rob.object_store]) > 0:
-                print(f'{rob.name}: Sort own block')
                 rob.pick_object(objects_found[rob.name][rob.object_store][0].to_vec3())
 
                 rob.move(rob.cords['object']['place'].to_vec3() + Vec3(0.0, -0.1, 0.1))
@@ -287,12 +290,6 @@ def move2(rob: Robot, camera: Camera):
                 rob.move(rob.cords['idlePose'])
             else:
                 time.sleep(2)
-
-        # Move robot to prepare to collect object
-        elif Conveyor.status == Direction.LEFT and rob.name == 'rob1':
-            print(f'{rob.name}: Prepare to pick object')
-            rob.move(rob.cords['conveyor'].to_vec3() + Vec3(0.0, 0.1, 0.1))
-            rob.status = Status.WAIT
 
         # 1. tell antal objecter på vært bord
         # 2. Har bor 1 flest sirkler eller bor 2 flest firkanter
@@ -526,8 +523,8 @@ if __name__ == '__main__':
 
     try:
         # main(test_move, [(rob1, camera1), (rob2, camera2)], conveyor_move, pre_run1)
-        # main(move_above_objects, [(rob2, camera2)])
-        main(move1, [(rob1, camera1), (rob2, camera2)], conveyor_move, pre_run2)
+        # main(move_above_objects, [(rob1, camera1), (rob2, camera2)])
+        main(move2, [(rob1, camera1), (rob2, camera2)], conveyor_move, pre_run2)
         # main(conveyor_func=conveyor_move)
     except KeyboardInterrupt:
         Conveyor.stop()
