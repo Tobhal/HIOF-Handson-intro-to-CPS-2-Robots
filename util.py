@@ -10,6 +10,9 @@ class Vec2:
     def to_tuple(self) -> tuple[float, float]:
         return self.x, self.y
 
+    def to_vec2(self):
+        return Vec2(self.x, self.y)
+
     def to_vec3(self):
         return Vec3(self.x, self.y, 0.0)
 
@@ -27,7 +30,9 @@ class Vec2:
 
 
 @dataclass
-class Vec3(Vec2):
+class Vec3:
+    x: float
+    y: float
     z: float
 
     def to_tuple(self) -> tuple[float, float, float]:
@@ -35,6 +40,9 @@ class Vec3(Vec2):
 
     def to_vec2(self):
         return Vec2(self.x, self.y)
+
+    def to_vec3(self):
+        return Vec3(self.x, self.y, self.z)
 
     def to_pose(self):
         return Pose(self.x, self.y, self.z)
@@ -59,13 +67,18 @@ class Vec3(Vec2):
 
 
 @dataclass
-class Pose(Vec3):
+class Pose:
+    x: float
+    y: float
+    z: float
     rx: float
     ry: float
     rz: float
 
     def __init__(self, x: float, y: float, z: float, rx=0.0, ry=3.14, rz=0.0):
-        super().__init__(x, y, z)
+        self.x = x
+        self.y = y
+        self.z = z
 
         self.rx = rx
         self.ry = ry
@@ -76,6 +89,9 @@ class Pose(Vec3):
 
     def to_vec3(self):
         return Vec3(self.x, self.y, self.z)
+
+    def to_pose(self):
+        return Pose(self.x, self.y, self.z, self.rx, self.ry, self.rz)
 
     def to_tuple(self) -> tuple:
         return self.x, self.y, self.z, self.rx, self.ry, self.rz

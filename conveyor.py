@@ -38,7 +38,8 @@ class Conveyor:
     @staticmethod
     def get_distance(sensor: int) -> Optional[float]:
         """
-        Change port[n] to change sensor. 1 is closest to the door, 4 is the furthest away from the door
+        Change port[n] to change sensor. 1 is closest to the door, 4 is the furthest away from the door.
+        If sensors return `out of range` returns 0, because it makes the code simpler.
         """
         r = requests.post('http://10.1.1.9', json={"code": "request", "cid": 1, "adr": "/getdatamulti", "data": {
             "datatosend": [f"/iolinkmaster/port[{sensor}]/iolinkdevice/pdin"]
@@ -52,7 +53,7 @@ class Conveyor:
             return int(d, 16)
         else:
             print("out of range")
-            return None
+            return 0
 
     @staticmethod
     def start_right():

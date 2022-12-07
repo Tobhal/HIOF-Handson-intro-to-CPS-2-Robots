@@ -51,8 +51,8 @@ class Robot(urx.Robot):
             self.send_program(rq_open())
         # time.sleep(0.1)
 
-        if center_before_move:
-            self.center_object(location, current_object)
+        # if center_before_move:
+        #    self.center_object(location, current_object)
 
         print(f'{self.name}: move above pick up = {location}')
         self.move(location + self.cords[current_object]['over'])
@@ -71,12 +71,11 @@ class Robot(urx.Robot):
         """
         print(f'{self.name}: move above place = {location}')
         self.move(location + self.cords[current_object]['over'])
-
         self.move(location + self.cords[current_object]['at'])
 
         with self.lock:
             self.send_program(rq_open())
-        time.sleep(0.1)
+        time.sleep(0.2)
 
         self.move(location + self.cords[current_object]['over'])
 
@@ -161,9 +160,14 @@ class Robot(urx.Robot):
         Default to `CUBE` object
         """
         self.pick_object(pick_pos.to_vec3(), current_object)
+
+        self.move(self.cords['idlePose'])
+
         self.move(self.cords['conveyor'].to_vec3() + Vec3(0.0, 0.1, 0.1))
         self.place_object(self.conveyor_stack.next().to_vec3())
         self.move(self.cords['conveyor'].to_vec3() + Vec3(0.0, 0.1, 0.1))
+
+        self.move(self.cords['idlePose'])
 
     def move_object_from_conveyor(self, current_object=Object.CUBE):
         """
@@ -173,6 +177,8 @@ class Robot(urx.Robot):
         conv.rx = 0.0
         conv.ry = 3.14
 
+        self.move(self.cords['conveyor'].to_vec3() + Vec3(0.0, 0.1, 0.1))
+
         self.pick_object(conv, current_object)
 
         self.move(self.cords['conveyor'].to_vec3() + Vec3(0.0, 0.1, 0.1))
@@ -181,7 +187,13 @@ class Robot(urx.Robot):
         conv.rx = 2.2
         conv.ry = 2.2
 
+        print('move to idle')
         self.move(self.cords['idlePose'])
+        time.sleep(1)
+
+        self.move(self.cords['idlePose'] + Vec3(0.0, -0.2, 0.0))
+
+        print('move on')
         self.place_object(self.place_stack.next().to_pose())
 
         self.move(self.cords['object']['place'] + Vec3(0.0, -0.2, 0.1))
