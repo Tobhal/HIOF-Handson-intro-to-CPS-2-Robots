@@ -58,7 +58,7 @@ class Robot(urx.Robot):
         # if center_before_move:
         #    self.center_object(location, current_object)
 
-        self.log(f'Move ({current_object.name}) above {location=}')
+        # self.log(f'Move ({current_object.name}) above {location=}')
         self.move(location + self.cords[current_object]['over'])
         self.move(location + self.cords[current_object]['at'])
 
@@ -73,7 +73,7 @@ class Robot(urx.Robot):
         Place an object at a location.
         Default to `CUBE` object
         """
-        self.log(f'Place {current_object.name} at {location=} of {type(location)=}')
+        # self.log(f'Place {current_object.name} at {location=} of {type(location)=}')
         self.move(location + self.cords[current_object]['over'])
         self.move(location + self.cords[current_object]['at'])
 
@@ -152,7 +152,7 @@ class Robot(urx.Robot):
         Move object from position to position. Leaves the robot above the object.
         Default to `CUBE` object
         """
-        self.log(f'Move {current_object=} {from_pos=} {to_pos=}')
+        # self.log(f'Move {current_object=} {from_pos=} {to_pos=}')
         self.pick_object(from_pos.to_pose(), current_object, center_before_move)
 
         if stop_at_idle:
@@ -165,7 +165,7 @@ class Robot(urx.Robot):
         """
         Moves object form `pickPos` to the `conveyor` position.
         """
-        self.log(f'Move {current_object=} from conveyor to {pick_pos=}')
+        # self.log(f'Move {current_object=} from conveyor to {pick_pos=}')
         added_offset = Vec3(0.0, 0.0, 0.0)
         if current_object == Object.CYLINDER:
             added_offset.z = 0.01
@@ -184,7 +184,7 @@ class Robot(urx.Robot):
         """
         Move object from conveyor to table
         """
-        self.log(f'Move {current_object=} from conveyor to {self.place_stack.peak()=}')
+        # self.log(f'Move {current_object=} from conveyor to {self.place_stack.peak()=}')
         conv = self.conveyor_stack.prev().to_pose()
         conv.rx = 0.0
         conv.ry = 3.14

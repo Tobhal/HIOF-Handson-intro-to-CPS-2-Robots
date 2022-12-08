@@ -172,6 +172,8 @@ def pre_run():
         print(f'Rob 2 move object: {rob2.object_move.name} {len(objects_found["rob2"][rob2.object_move])}')
         object_move = RobotPickUp.R2
 
+    print(f'Robot to move over its objects are {object_move=}')
+
 
 # Robot move functions
 def move(rob: Robot, camera: Camera, pre_run_func: Callable[[], None] = None):
@@ -285,6 +287,65 @@ def move(rob: Robot, camera: Camera, pre_run_func: Callable[[], None] = None):
         # 2. Har bor 1 flest sirkler eller bor 2 flest firkanter
         # # 2.1. Den som har minst objecter å flytte og minst egene å sortere begynner.
         # # 2.2. Den som har minst å sortere begynner å flytte
+
+
+def move2(rob: Robot, camera: Camera, pre_run_func: Callable[[], None] = None):
+    global object_Pick_Up, object_move, rob1, rob2
+
+    idle_count = 0
+
+    # Wait for both robots to reach idle state before beginning
+    rob.move(rob.cords['idlePose'])
+    rob.send_program(rq_open())
+
+    rob.barrier.wait()
+
+    while termination_condition():
+        if object_move.value == rob.name:
+            # Make robot move object to conveyor
+            rob.log(f'Moving {rob.object_store.name} to other robot')
+            time.sleep(10)
+            pass
+
+        elif object_Pick_Up == rob.name:
+            # Pick object form conveyor
+            if Conveyor.status == Status.MOVING:
+                # Move to prepare for pickup
+                rob.log(f'Preparing to pick object')
+                time.sleep(10)
+                pass
+            elif Conveyor == Status.NOT_READY:
+                # Start to pick object from conveyor
+                rob.log(f'Sorting {rob.object_store.name} from conveyor')
+                time.sleep(10)
+                pass
+            pass
+
+        elif object_Pick_Up == RobotPickUp.NONE and object_move.value == RobotPickUp.flip(rob.name):
+            # The other robot is still moving its objects to the conveyor, so sort its own
+            if obj_store := camera.get_object(rob.object_store):
+                rob.log(f'Sorting {rob.object_store.name} at {obj_store[0]=}')
+                time.sleep(10)
+                pass
+            pass
+
+        else:
+            # There are no robot set to move an object to the other robot
+            if object_move == RobotPickUp.NONE and object_Pick_Up == RobotPickUp.NONE:
+                # None of the robots are scheduled to do anything
+                rob.log(f'Waiting for {RobotPickUp.flip(rob.name).value}')
+                try:
+                    i = rob.barrier.wait(timeout=5)
+                except BrokenPipeError:
+                    rob.log(f'Other robot did not get ready in time.')
+                    continue
+                else:
+                    if i == 0:
+                        rob.log(f'Running pre run again')
+                        pre_run_func()
+                    time.sleep(10)
+                    rob.barrier.wait()
+            pass
 
 
 def move_above_objects(rob: Robot, camera: Camera):

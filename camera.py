@@ -89,7 +89,7 @@ class Camera:
 
         return x, y
 
-    def get_cubes(self) -> list[Vec2]:
+    def get_cubes(self) -> Optional[list[Vec2]]:
         img = self.get_image()
 
         threshold = self.image_to_threshold(img)
@@ -113,9 +113,9 @@ class Camera:
 
                 cubes.append(cube)
 
-        return cubes if len(cubes) > 0 else []
+        return cubes if len(cubes) > 0 else None
 
-    def get_cylinders(self) -> list[Vec2]:
+    def get_cylinders(self) -> Optional[list[Vec2]]:
         img = self.get_image()
         img = cv2.blur(img, (3, 3))
         circles = cv2.HoughCircles(img, cv2.HOUGH_GRADIENT, 1, 20,
@@ -137,12 +137,12 @@ class Camera:
 
                 cylinders.append(Vec2((b / 1000) * self.invert.x, (a / 1000) * self.invert.y))
 
-        return cylinders if len(cylinders) > 0 else []
+        return cylinders if len(cylinders) > 0 else None
 
     def get_shapes(self) -> tuple[Optional[list[Vec2]], Optional[list[Vec2]]]:
         return self.get_cubes(), self.get_cylinders()
 
-    def get_object(self, _object: Object) -> list[Vec2]:
+    def get_object(self, _object: Object) -> Optional[list[Vec2]]:
         return self.get_cubes() if _object == Object.CUBE else self.get_cylinders()
 
     def switch_object(self, bank: int):
