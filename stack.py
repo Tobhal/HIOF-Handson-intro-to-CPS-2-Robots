@@ -36,6 +36,8 @@ class Stack:
 
         self.prev_positions.append(return_value)
 
+        print(f'{self.name}: {return_value=} {self.current_height=}')
+
         return return_value
 
     def prev(self) -> Optional[Vec3]:
@@ -47,6 +49,9 @@ class Stack:
 
         pos = self.prev_positions.pop()
         self.coords = pos
+
+        self.current_height = (self.current_height - 1) % self.height
+
         return pos
 
     def reset(self):

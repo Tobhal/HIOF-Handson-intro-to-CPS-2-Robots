@@ -6,7 +6,7 @@ import time
 from Gripper import *
 from util import Status, Vec2, Vec3, Pose, Object
 from stack import Stack
-from threading import Lock, Barrier
+from threading import Lock
 
 
 class Robot(urx.Robot):
@@ -15,7 +15,7 @@ class Robot(urx.Robot):
     def __init__(
             self, host: str, name: str, object_store: Object,
             cords: dict[str | Object, Pose | dict[str, Vec3] | dict[str, Vec3] | dict[str, Vec3]],
-            place_stack: Stack, conveyor_stack: Stack, barrier: Barrier,
+            place_stack: Stack, conveyor_stack: Stack,  # barrier: Barrier,
             use_rt=False, use_simulation=False):
         super().__init__(host, use_rt, use_simulation)
         self.name = name
@@ -25,7 +25,7 @@ class Robot(urx.Robot):
         self.place_stack = place_stack
         self.conveyor_stack = conveyor_stack
         self.lock = Lock()
-        self.barrier = barrier
+        # self.barrier = barrier
 
         self.status = Status.NOT_READY
 
@@ -73,7 +73,7 @@ class Robot(urx.Robot):
         Place an object at a location.
         Default to `CUBE` object
         """
-        # self.log(f'Place {current_object.name} at {location=} of {type(location)=}')
+        self.log(f'Place {current_object.name} at {location=} of {type(location)=}')
         self.move(location + self.cords[current_object]['over'])
         self.move(location + self.cords[current_object]['at'])
 
@@ -83,44 +83,6 @@ class Robot(urx.Robot):
 
         if end_over_object:
             self.move(location + self.cords[current_object]['over'])
-
-    def center_object(self, location: Pose, current_object):
-        """
-        Center the object in the TCP. Grabs the object at one location, TCP rotates 90 deg and grabs again.
-        Uses the location for the centring.
-        Leaves the robot at the location
-        Default to `CUBE` object
-        """
-        # Remove rotation
-        center_location = Pose(location.x, location.y, location.z)
-
-        with self.lock:
-            self.send_program(rq_open())
-
-        print(f'{self.name}: center object at = {location}')
-        center_location.rx = 0.0
-        center_location.ry = 3.14
-
-        def open_close():
-            self.move(center_location + self.cords[current_object]['over'])
-            self.move(center_location + self.cords[current_object]['at'])
-
-            with self.lock:
-                self.send_program(rq_move(60))
-            time.sleep(0.5)
-
-            with self.lock:
-                self.send_program(rq_open())
-            time.sleep(0.5)
-
-            self.move(center_location + self.cords[current_object]['over'])
-
-        open_close()
-
-        center_location.rx = 2.2
-        center_location.ry = 2.2
-
-        open_close()
 
     def move(self, location: Vec2 | Vec3 | Pose, move_wait=True):
         """
@@ -173,9 +135,10 @@ class Robot(urx.Robot):
         self.pick_object(pick_pos.to_pose(), current_object)
 
         self.move(self.cords['idlePose'])
-
         self.move(self.cords['conveyor'].to_vec3() + Vec3(0.0, 0.1, 0.1))
+
         self.place_object(self.conveyor_stack.next().to_pose() + added_offset, current_object)
+
         self.move(self.cords['conveyor'].to_vec3() + Vec3(0.0, 0.1, 0.1))
 
         self.move(self.cords['idlePose'])
@@ -185,24 +148,28 @@ class Robot(urx.Robot):
         Move object from conveyor to table
         """
         # self.log(f'Move {current_object=} from conveyor to {self.place_stack.peak()=}')
-        conv = self.conveyor_stack.prev().to_pose()
-        conv.rx = 0.0
-        conv.ry = 3.14
+        obj = self.conveyor_stack.prev()
 
         self.move(self.cords['conveyor'].to_vec3() + Vec3(0.0, 0.1, 0.1))
 
-        self.pick_object(conv, current_object)
+        x_offset = -0.04 if current_object == Object.CYLINDER else 0.0
+        obj = Pose(obj.x + x_offset, obj.y, obj.z)
+
+        self.pick_object(obj, current_object)
 
         self.move(self.cords['conveyor'].to_vec3() + Vec3(0.0, 0.1, 0.1))
         self.cords['object']['place'].y += current_object['size'].y + 0.01
-
-        conv.rx = 2.2
-        conv.ry = 2.2
 
         self.move(self.cords['idlePose'])
         time.sleep(1)
 
         self.move(self.cords['idlePose'] + Vec3(0.0, -0.2, 0.0))
 
-        self.place_object(self.place_stack.next().to_pose(), current_object, end_over_object=False)
-        self.move(self.cords['object']['place'] + Vec3(0.0, -0.1, 0.1 + (self.object_store['size'].z / 2)))
+        place_pos = self.place_stack.next()
+        place_pos = Pose(place_pos.x, place_pos.y, place_pos.z)
+
+        self.place_object(place_pos, current_object, end_over_object=False)
+
+        self.log(f'{self.cords["object"]["place"]=}')
+
+        self.move(self.cords['object']['place'] + Vec3(0.0, -0.2, 0.1 + (self.object_store['size'].z / 2)))
