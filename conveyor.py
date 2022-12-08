@@ -33,7 +33,11 @@ class Conveyor:
     status = Status.READY
     move_direction = Direction.NONE
 
-    number_of_items_on_belt = 0
+    number_of_items_on_belt = 0 # TODO: Refactor away?
+
+    @staticmethod
+    def log(message):
+        print('Conveyor:', message)
 
     @staticmethod
     def get_distance(sensor: int) -> Optional[float]:
@@ -61,6 +65,7 @@ class Conveyor:
         Moves the conveyor to the right
         """
         Conveyor.move_direction = Direction.RIGHT
+        Conveyor.log('Started to move right')
         with Conveyor.lock:
             Conveyor.robot.set_digital_out(5, 1)
             # allow digital out 5 to stay active for 0.1s
@@ -68,18 +73,23 @@ class Conveyor:
             # set digital out back to 0
             Conveyor.robot.set_digital_out(5, 0)
 
+        return Conveyor
+
     @staticmethod
     def start_left():
         """
         Moves the conveyor to the left
         """
         Conveyor.move_direction = Direction.LEFT
+        Conveyor.log('Started to move left')
         with Conveyor.lock:
             Conveyor.robot.set_digital_out(6, 1)
             # allow digital out 6 to stay active for 0.1s
             time.sleep(0.1)
             # set digital out back to 0
             Conveyor.robot.set_digital_out(6, 0)
+
+        return Conveyor
 
     @staticmethod
     def stop():
@@ -95,6 +105,8 @@ class Conveyor:
 
         Conveyor.move_direction = Direction.NONE
 
+        return Conveyor
+
     @staticmethod
     def set_speed(voltage: float):
         """
@@ -106,6 +118,8 @@ class Conveyor:
             # sets analog out 1 to desired voltage. 0.012 is the slowest speed.
             Conveyor.robot.set_analog_out(1, voltage)
 
+        return Conveyor
+
     @staticmethod
     def block_for_detect_object(sensor: int, compare=operator.gt, debug_print=False):
         """
@@ -116,3 +130,7 @@ class Conveyor:
         while compare(dist := Conveyor.get_distance(sensor), Conveyor.dist_to_wall):
             if debug_print:
                 print('dist =', dist)
+
+        Conveyor.log(f'Sensor ({sensor}) detected block')
+
+        return Conveyor

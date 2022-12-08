@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
 
-
 @dataclass
 class Vec2:
     x: float
@@ -110,7 +109,7 @@ class Pose:
 
 
 class RobotPickUp(Enum):
-    NONE = ""
+    NONE = "None"
     R1 = "rob1"
     R2 = "rob2"
 
@@ -159,4 +158,4 @@ class Direction(Enum):
 
 
 if __name__ == '__main__':
-    print(Vec2(1, 1).to_pose() + Vec3(1, 3, 4))
+    pass
