@@ -1,19 +1,22 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from typing import Optional
+
 from util import Vec2, Vec3, Object
 
 
 class Stack:
-    current_height = 0
-    padding = Vec2(0.01, 0.01)
-    prev_positions: list[Vec2 | Vec3] = []
-
-    def __init__(self, coords: Vec3, direction: Vec2, height: int, obj: Object):
+    def __init__(self, name: str, coords: Vec3, direction: Vec2, height: int, obj: Object):
+        self.name = name
         self.coords = coords
         self.direction = direction
         self.height = height
         self.object = obj
+
+        self.current_height = 0
+        self.padding = Vec2(0.01, 0.01)
+        self.prev_positions: list[Vec3] = []
 
         self.original_coords = deepcopy(self.coords)
 
@@ -35,11 +38,15 @@ class Stack:
 
         return return_value
 
-    def prev(self) -> Vec3:
+    def prev(self) -> Optional[Vec3]:
+        """
+        Return the previous added location. If the list is empty returns None
+        """
+        if len(self.prev_positions) == 0:
+            return None
+
         pos = self.prev_positions.pop()
-
         self.coords = pos
-
         return pos
 
     def reset(self):
@@ -48,17 +55,9 @@ class Stack:
     def peak(self) -> Vec3:
         return self.prev_positions[-1]
 
+    def __repr__(self):
+        return f'Stack {{len: {len(self.prev_positions)}, Elements: {[element for element in self.prev_positions]}}}'
+
 
 if __name__ == '__main__':
-    stack = Stack(Vec3(0.27, -0.42, 0.4), Vec2(1.0, 0.0), 2, Object.CUBE)
-
-    print(stack.next())
-    print(stack.next())
-    print(stack.next())
-
-    print()
-
-    print(stack.prev())
-    print(stack.prev())
-    print(stack.prev())
-
+    pass

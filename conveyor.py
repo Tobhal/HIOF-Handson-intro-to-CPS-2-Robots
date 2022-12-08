@@ -13,12 +13,12 @@ class Conveyor:
     """
     Static class for handling the conveyor.
     """
-    main_speed = 0.15
+    main_speed = 0.10
     """Main speed of the conveyor"""
     stop_speed = 0.025
     """Speed before detection from sensor 1 and 4"""
 
-    wait_time = 1.5
+    wait_time = 0
     """Time to before starting conveyor, normally after robot have placed object"""
 
     wait_after_detect_left = 3
@@ -107,11 +107,12 @@ class Conveyor:
             Conveyor.robot.set_analog_out(1, voltage)
 
     @staticmethod
-    def block_for_detect_object(sensor: int, compare=operator.gt):
+    def block_for_detect_object(sensor: int, compare=operator.gt, debug_print=False):
         """
         Blocks the thread while waiting for something to move past the given sensor.
         operator.gt = >
         operator.lt = <
         """
-        while compare(Conveyor.get_distance(sensor), Conveyor.dist_to_wall):
-            pass
+        while compare(dist := Conveyor.get_distance(sensor), Conveyor.dist_to_wall):
+            if debug_print:
+                print('dist =', dist)

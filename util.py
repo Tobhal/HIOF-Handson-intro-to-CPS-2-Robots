@@ -41,9 +41,6 @@ class Vec3:
     def to_vec2(self):
         return Vec2(self.x, self.y)
 
-    def to_vec3(self):
-        return Vec3(self.x, self.y, self.z)
-
     def to_pose(self):
         return Pose(self.x, self.y, self.z)
 
@@ -119,7 +116,12 @@ class RobotPickUp(Enum):
 
     @staticmethod
     def flip(state):
-        return RobotPickUp.R2 if state == RobotPickUp.R1 else RobotPickUp.R1
+        if type(state) == str:
+            return RobotPickUp.R1 if state == 'rob2' else RobotPickUp.R2
+        elif type(state) == RobotPickUp:
+            return RobotPickUp.R2 if state == RobotPickUp.R1 else RobotPickUp.R1
+        else:
+            return RobotPickUp.NONE
 
 
 class Object(Enum):
@@ -130,13 +132,13 @@ class Object(Enum):
     }
     CYLINDER = {
         'over': Vec3(0.0, 0.0, 0.1),
-        'at': Vec3(0.0, 0.0, 0.02),
+        'at': Vec3(0.0, 0.0, 0.025),
         'size': Vec3(0.06, 0.06, 0.075)
     }
 
     @staticmethod
     def flip(obj):
-        return Object.CUBE if type(obj) is Object.CYLINDER else Object.CUBE
+        return Object.CUBE if obj == Object.CYLINDER else Object.CYLINDER
 
     def __getitem__(self, item):
         return self.value[item]
@@ -157,4 +159,4 @@ class Direction(Enum):
 
 
 if __name__ == '__main__':
-    cube = Object.CUBE
+    print(Vec2(1, 1).to_pose() + Vec3(1, 3, 4))

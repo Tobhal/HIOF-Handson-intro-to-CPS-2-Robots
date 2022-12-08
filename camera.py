@@ -27,9 +27,6 @@ class Camera:
     """
     Camera object to interface with each robot's camera.
     """
-    switch_counter = 0
-    witch_object = 0
-    object_located = 0
 
     def __init__(self,
                  ip: str,
@@ -45,6 +42,10 @@ class Camera:
         self.invert = invert
         self.camera_cut = camera_cut
         self.objects = objects
+
+        self.switch_counter = 0
+        self.witch_object = 0
+        self.object_located = 0
 
         if camera_threshold not in range(0, 257):
             raise NumberToLarge(f'camera_threshold needs to be in range 0..256, current value is {camera_threshold}')
@@ -140,6 +141,9 @@ class Camera:
 
     def get_shapes(self) -> tuple[Optional[list[Vec2]], Optional[list[Vec2]]]:
         return self.get_cubes(), self.get_cylinders()
+
+    def get_object(self, _object: Object) -> list[Vec2]:
+        return self.get_cubes() if _object == Object.CUBE else self.get_cylinders()
 
     def switch_object(self, bank: int):
         """
