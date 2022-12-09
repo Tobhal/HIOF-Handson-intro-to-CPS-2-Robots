@@ -127,20 +127,18 @@ class Robot(urx.Robot):
         Moves object form `pickPos` to the `conveyor` position.
         """
         # self.log(f'Move {current_object=} from conveyor to {pick_pos=}')
-        added_offset = Vec3(0.0, 0.0, 0.0)
+        added_offset = Vec3(0.0, 0.0, 0.002)
         if current_object == Object.CYLINDER:
-            added_offset.z = 0.01
+            added_offset.z = 0.012
 
         self.pick_object(pick_pos.to_pose(), current_object)
 
         self.move(self.cords['idlePose'])
-        self.move(self.cords['conveyor'].to_vec3() + Vec3(0.0, 0.1, 0.1))
+        self.move(self.cords['conveyor'].to_vec3() + Vec3(0.0, 0.1, 0.15))
 
         self.place_object(self.conveyor_stack.next().to_pose() + added_offset, current_object)
 
         self.move(self.cords['conveyor'].to_vec3() + Vec3(0.0, 0.1, 0.1))
-
-        self.move(self.cords['idlePose'])
 
     def move_object_from_conveyor(self, current_object):
         """
@@ -169,6 +167,8 @@ class Robot(urx.Robot):
 
         self.place_object(place_pos, current_object, end_over_object=False)
 
-        self.log(f'{self.cords["object"]["place"]=}')
+        place_pos.z += self.object_store['size'].z
 
-        self.move(self.cords['object']['place'] + Vec3(0.0, -0.2, 0.1 + (self.object_store['size'].z / 2)))
+        self.move(place_pos)
+
+        self.move(self.cords['idlePose'])
