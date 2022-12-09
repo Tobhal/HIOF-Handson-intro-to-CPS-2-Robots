@@ -15,7 +15,7 @@ class Robot(urx.Robot):
     def __init__(
             self, host: str, name: str, object_store: Object,
             cords: dict[str | Object, Pose | dict[str, Vec3] | dict[str, Vec3] | dict[str, Vec3]],
-            place_stack: Stack, conveyor_stack: Stack,  # barrier: Barrier,
+            place_stack: Stack, conveyor_stack: Stack,
             use_rt=False, use_simulation=False):
         super().__init__(host, use_rt, use_simulation)
         self.name = name
@@ -25,7 +25,6 @@ class Robot(urx.Robot):
         self.place_stack = place_stack
         self.conveyor_stack = conveyor_stack
         self.lock = Lock()
-        # self.barrier = barrier
 
         self.status = Status.NOT_READY
 

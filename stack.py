@@ -36,7 +36,7 @@ class Stack:
 
         self.prev_positions.append(return_value)
 
-        print(f'{self.name}: {return_value=} {self.current_height=}')
+        # print(f'{self.name}: {return_value=} {self.current_height=}')
 
         return return_value
 
