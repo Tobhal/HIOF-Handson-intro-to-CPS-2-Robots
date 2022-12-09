@@ -130,7 +130,7 @@ class Object(Enum):
         'size': Vec3(0.05, 0.05, 0.05)
     }
     CYLINDER = {
-        'over': Vec3(0.0, 0.0, 0.1),
+        'over': Vec3(0.0, 0.0, 0.15),
         'at': Vec3(0.0, 0.0, 0.025),
         'size': Vec3(0.06, 0.06, 0.075)
     }

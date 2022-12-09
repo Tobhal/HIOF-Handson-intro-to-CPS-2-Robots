@@ -212,16 +212,20 @@ def move(rob: Robot, camera: Camera, pre_run_func: Callable[[], None]):
 
             i = 0
             while obj := camera.get_object(rob.object_move):
-                if i > 4:
+                if i >= 4:
                     break
 
                 rob.move_object_to_conveyor(obj[0].to_vec3() + added_offset, rob.object_move)
                 Conveyor.number_of_items_on_belt += 1
 
+                rob.move(rob.cords['idlePose'])
+
                 if rob.name == 'rob1':
                     rob2.conveyor_stack.next()
                 else:
                     rob1.conveyor_stack.next()
+
+                i += 1
 
             Conveyor.status = Status.READY
             object_move = RobotPickUp.NONE
@@ -293,8 +297,10 @@ def sort_own_blocks(rob: Robot, camera: Camera):
         place_pos = rob.place_stack.next()  # + added_offset
 
         rob.place_object(place_pos.to_pose(), rob.object_store, end_over_object=False)
-        rob.move(rob.cords['object']['place'].to_pose() +
-                 Vec3(0.0, -0.1, 0.1 + (rob.object_store['size'].z / 2)))
+
+        place_pos.z += rob.object_store['size'].z
+
+        rob.move(place_pos)
 
         rob.move(rob.cords['idlePose'])
 
