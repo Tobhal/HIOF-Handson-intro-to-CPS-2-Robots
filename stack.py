@@ -56,6 +56,7 @@ class Stack:
 
     def reset(self):
         self.coords = deepcopy(self.original_coords)
+        self.prev_positions = []
 
     def peak(self) -> Vec3:
         return self.prev_positions[-1]

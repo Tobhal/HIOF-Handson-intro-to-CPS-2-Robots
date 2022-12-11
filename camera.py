@@ -111,6 +111,10 @@ class Camera:
 
                 cube = Vec2(((y + (h / 2)) * self.invert.x) / 1000, ((x + (w / 2)) * self.invert.y) / 1000)
 
+                if cube.y < -0.445:
+                    print(f'Cube out of reach: {cube=}')
+                    continue
+
                 cubes.append(cube)
 
         return cubes if len(cubes) > 0 else None
@@ -135,7 +139,13 @@ class Camera:
 
                 a, b = self.image_coords_to_robot_coords(a, b)
 
-                cylinders.append(Vec2((b / 1000) * self.invert.x, (a / 1000) * self.invert.y))
+                cylinder = Vec2((b / 1000) * self.invert.x, (a / 1000) * self.invert.y)
+
+                if cylinder.y < -0.445:
+                    print(f'Cylinder out of reach: {b}, {a}')
+                    continue
+
+                cylinders.append(cylinder)
 
         return cylinders if len(cylinders) > 0 else None
 
