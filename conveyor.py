@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import operator
 import time
 from threading import Lock
@@ -18,14 +20,8 @@ class Conveyor:
     stop_speed = 0.025
     """Speed before detection from sensor 1 and 4"""
 
-    wait_time = 0
-    """Time to before starting conveyor, normally after robot have placed object"""
-
-    wait_after_detect_left = 3
-    """Wait after sensor 3 has detected the object"""
-
-    wait_after_detect_right = 3.3
-    """Wait after sensor 2 has detected the object"""
+    wait_after_detection = 3.3
+    """Wait after sensor 2 or 3 has detected the object"""
 
     dist_to_wall = 50
     robot: Robot = None
@@ -92,9 +88,21 @@ class Conveyor:
         return Conveyor
 
     @staticmethod
+    def start(direction: Direction):
+        Conveyor.status = Status.MOVING
+
+        if direction == Direction.RIGHT:
+            Conveyor.start_right()
+        elif direction == Direction.LEFT:
+            Conveyor.start_left()
+
+        return Conveyor
+
+    @staticmethod
     def stop():
         """
         Stops the conveyor.
+         Sets status to `NOT_READY` to make the code easier.
         """
         with Conveyor.lock:
             Conveyor.robot.set_digital_out(7, 1)
@@ -104,6 +112,7 @@ class Conveyor:
             Conveyor.robot.set_digital_out(7, 0)
 
         Conveyor.move_direction = Direction.NONE
+        Conveyor.status = Status.NOT_READY
 
         return Conveyor
 
@@ -133,4 +142,12 @@ class Conveyor:
 
         Conveyor.log(f'Sensor ({sensor}) detected block')
 
+        return Conveyor
+
+    @staticmethod
+    def sleep(sec: float | int):
+        """
+        Sleep for sec amount of time
+        """
+        time.sleep(sec)
         return Conveyor

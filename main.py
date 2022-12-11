@@ -10,7 +10,7 @@ from camera import Camera
 from conveyor import Conveyor
 from robot import Robot
 from stack import Stack
-from util import Vec2, Vec3, Pose, Object, RobotPickUp, Status
+from util import Vec2, Vec3, Pose, Object, RobotPickUp, Status, Direction
 
 # TODO: Needs more tuning
 camera1 = Camera(ip='10.1.1.8',
@@ -325,54 +325,32 @@ def sort_own_blocks(rob: Robot, camera: Camera):
 
 # Main conveyor move code
 def conveyor_move():
-    global object_Pick_Up, object_move, end_program
+    global object_move
 
     while termination_condition():
-        # object_Pick_Up = RobotPickUp.NONE
+        if Conveyor.status != Status.READY:
+            continue
 
-        dist_1 = Conveyor.get_distance(1)
-        dist_4 = Conveyor.get_distance(4)
+        if Conveyor.get_distance(1) < Conveyor.dist_to_wall:
+            sensors = (3, 4)
+            direction = Direction.LEFT
+        elif Conveyor.get_distance(4) < Conveyor.dist_to_wall:
+            sensors = (2, 1)
+            direction = Direction.RIGHT
+        else:
+            continue
 
-        if dist_4 < Conveyor.dist_to_wall and Conveyor.status == Status.READY:
-            Conveyor.status = Status.MOVING
+        Conveyor.set_speed(Conveyor.main_speed) \
+            .start(direction)\
+            .block_for_detect_object(sensors[0]) \
+            .sleep(Conveyor.wait_after_detection) \
+            .set_speed(Conveyor.stop_speed) \
+            .block_for_detect_object(sensors[1]) \
+            .stop() \
+            .block_for_detect_object(sensors[1], operator.lt)
 
-            Conveyor.set_speed(Conveyor.main_speed)\
-                .start_right()\
-                .block_for_detect_object(2)
-
-            time.sleep(Conveyor.wait_after_detect_right)
-
-            Conveyor.set_speed(Conveyor.stop_speed)\
-                .block_for_detect_object(1)\
-                .stop()
-
-            Conveyor.status = Status.NOT_READY
-
-            # Wait for object to be picked up
-            Conveyor.block_for_detect_object(1, operator.lt)
-
-            object_move = RobotPickUp.R2
-            Conveyor.status = Status.READY
-        elif dist_1 < Conveyor.dist_to_wall and Conveyor.status == Status.READY:
-            Conveyor.status = Status.MOVING
-
-            Conveyor.set_speed(Conveyor.main_speed)\
-                .start_left()\
-                .block_for_detect_object(3)
-
-            time.sleep(Conveyor.wait_after_detect_left)
-
-            Conveyor.set_speed(Conveyor.stop_speed)\
-                .block_for_detect_object(4)\
-                .stop()
-
-            Conveyor.status = Status.NOT_READY
-
-            # Wait for object to be picked up
-            Conveyor.block_for_detect_object(4, operator.lt)
-
-            object_move = RobotPickUp.R1
-            Conveyor.status = Status.READY
+        object_move = RobotPickUp.R1 if direction == Direction.LEFT else RobotPickUp.R2
+        Conveyor.status = Status.READY
 
 
 # Other functions
@@ -413,10 +391,8 @@ if __name__ == '__main__':
         pass
 
     try:
-        # main(test_move, [(rob1, camera1), (rob2, camera2)], conveyor_move, pre_run1)
-        # main(move_above_objects, [(rob1, camera1), (rob2, camera2)])
-        main(move, [(rob1, camera1), (rob2, camera2)], conveyor_move, pre_run)
-        # main(conveyor_func=conveyor_move)
+        # main(move, [(rob1, camera1), (rob2, camera2)], conveyor_move, pre_run)
+        main(conveyor_func=conveyor_move)
     except KeyboardInterrupt:
         Conveyor.stop()
 
