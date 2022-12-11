@@ -160,6 +160,16 @@ def pre_run():
     elif not objects_found['rob1'][rob1.object_move] and objects_found['rob2'][rob2.object_move]:
         object_move = RobotPickUp.R2
 
+    elif not objects_found['rob1'][rob1.object_store] and not objects_found['rob1'][rob1.object_store]:
+        if len(objects_found['rob1'][rob1.object_move]) > len(objects_found['rob2'][rob2.object_move]):
+            object_move = RobotPickUp.R2
+        else:
+            object_move = RobotPickUp.R1
+    elif not objects_found['rob1'][rob1.object_store] and objects_found['rob1'][rob1.object_store]:
+        object_move = RobotPickUp.R2
+    elif objects_found['rob1'][rob1.object_store] and not objects_found['rob1'][rob1.object_store]:
+        object_move = RobotPickUp.R1
+
     elif len(objects_found['rob1'][rob1.object_store]) < len(objects_found['rob2'][rob2.object_store]):
         print(f'Rob 1 move object: {rob1.object_store.name} {len(objects_found["rob1"][rob1.object_store])}')
         object_move = RobotPickUp.R1
@@ -260,6 +270,8 @@ def move(rob: Robot, camera: Camera, pre_run_func: Callable[[], None]):
 
                 rob1.conveyor_stack.reset()
                 rob2.conveyor_stack.reset()
+
+                Conveyor.number_of_items_on_belt = 0
 
                 object_Pick_Up = RobotPickUp.NONE
                 rob.status = Status.READY  # TODO: Is this needed?
