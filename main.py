@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import operator
-import random
 import time
-from copy import deepcopy
-from threading import Thread, Barrier, BrokenBarrierError
+from threading import Thread, Barrier
 from typing import Callable, Optional
 
 from Gripper import *
@@ -162,12 +160,17 @@ def pre_run():
     elif not objects_found['rob1'][rob1.object_move] and objects_found['rob2'][rob2.object_move]:
         object_move = RobotPickUp.R2
 
-    elif len(objects_found['rob1'][rob1.object_move]) < len(objects_found['rob2'][rob2.object_move]):
-        print(f'Rob 1 move object: {rob1.object_move.name} {len(objects_found["rob1"][rob1.object_move])}')
+    elif len(objects_found['rob1'][rob1.object_store]) < len(objects_found['rob2'][rob2.object_store]):
+        print(f'Rob 1 move object: {rob1.object_store.name} {len(objects_found["rob1"][rob1.object_store])}')
         object_move = RobotPickUp.R1
-    else:
-        print(f'Rob 2 move object: {rob2.object_move.name} {len(objects_found["rob2"][rob2.object_move])}')
+    elif len(objects_found['rob1'][rob1.object_store]) > len(objects_found['rob2'][rob2.object_store]):
+        print(f'Rob 2 move object: {rob2.object_store.name} {len(objects_found["rob2"][rob2.object_store])}')
         object_move = RobotPickUp.R2
+    elif len(objects_found['rob1'][rob1.object_store]) == len(objects_found['rob2'][rob2.object_store]):
+        object_move = RobotPickUp.R1
+
+    else:
+        print('kake')
 
     print(f'Robot to move over its objects are {object_move=}')
 
@@ -245,7 +248,10 @@ def move(rob: Robot, camera: Camera, pre_run_func: Callable[[], None]):
                 # Start to pick object from conveyor
                 rob.log(f'Sorting {rob.object_store.name} from conveyor')
 
-                for _ in range(0, Conveyor.number_of_items_on_belt):
+                for i in range(0, Conveyor.number_of_items_on_belt):
+                    rob.log(f'{i}')
+                    rob.log(f'{rob.conveyor_stack=}')
+
                     rob.place_stack.next()
                     rob.place_stack.prev()
 
