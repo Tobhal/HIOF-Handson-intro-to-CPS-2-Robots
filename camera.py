@@ -5,7 +5,7 @@ import cv2
 import time
 import numpy as np
 
-from typing import Optional, NewType
+from typing import NewType
 from util import Vec2, Object
 
 Image = NewType('Image', any)
@@ -28,14 +28,16 @@ class Camera:
     Camera object to interface with each robot's camera.
     """
 
-    def __init__(self,
-                 ip: str,
-                 offsets: Vec2,
-                 offset_scale: Vec2,
-                 invert: Vec2,
-                 camera_cut: tuple[Vec2, Vec2],
-                 camera_threshold: int,
-                 objects: list[Object]):
+    def __init__(
+            self,
+            ip: str,
+            offsets: Vec2,
+            offset_scale: Vec2,
+            invert: Vec2,
+            camera_cut: tuple[Vec2, Vec2],
+            camera_threshold: int,
+            objects=(Object.CUBE, Object.CYLINDER)
+    ):
         self.ip = ip
         self.offset = offsets
         self.offset_scale = offset_scale
@@ -89,7 +91,7 @@ class Camera:
 
         return x, y
 
-    def get_cubes(self) -> Optional[list[Vec2]]:
+    def get_cubes(self) -> list[Vec2] | None:
         img = self.get_image()
 
         threshold = self.image_to_threshold(img)
@@ -119,7 +121,7 @@ class Camera:
 
         return cubes if len(cubes) > 0 else None
 
-    def get_cylinders(self) -> Optional[list[Vec2]]:
+    def get_cylinders(self) -> list[Vec2] | None:
         img = self.get_image()
         img = cv2.blur(img, (3, 3))
         circles = cv2.HoughCircles(img, cv2.HOUGH_GRADIENT, 1, 20,
@@ -149,10 +151,10 @@ class Camera:
 
         return cylinders if len(cylinders) > 0 else None
 
-    def get_shapes(self) -> tuple[Optional[list[Vec2]], Optional[list[Vec2]]]:
-        return self.get_cubes(), self.get_cylinders()
+    def get_shapes(self) -> dict[Object, list[Vec2] | None]:
+        return {Object.CUBE: self.get_cubes(), Object.CYLINDER: self.get_cylinders()}
 
-    def get_object(self, _object: Object) -> Optional[list[Vec2]]:
+    def get_object(self, _object: Object) -> list[Vec2] | None:
         return self.get_cubes() if _object == Object.CUBE else self.get_cylinders()
 
     def switch_object(self, bank: int):

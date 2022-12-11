@@ -125,17 +125,6 @@ run_pre_run = False
 
 counter = 0
 
-objects_found = {
-    'rob1': {
-        Object.CUBE: [],
-        Object.CYLINDER: []
-    },
-    'rob2': {
-        Object.CUBE: [],
-        Object.CYLINDER: []
-    }
-}
-
 
 def termination_condition():
     return end_program or counter < 2
@@ -143,44 +132,38 @@ def termination_condition():
 
 # Pre robot move functions
 def pre_run():
-    global rob1, rob2, camera1, camera2, object_move, object_Pick_Up, objects_found
+    global rob1, rob2, camera1, camera2, object_move
 
-    objects_found['rob1'][rob1.object_move] = camera1.get_object(rob1.object_move)
-    objects_found['rob1'][rob1.object_store] = camera1.get_object(rob1.object_store)
+    rob1_obj = camera1.get_shapes()
+    rob2_obj = camera2.get_shapes()
 
-    objects_found['rob2'][rob2.object_move] = camera2.get_object(rob2.object_move)
-    objects_found['rob2'][rob2.object_store] = camera2.get_object(rob2.object_store)
-
-    if not objects_found['rob1'][rob1.object_move] and not objects_found['rob2'][rob2.object_move]:
+    if not rob1_obj[rob1.object_move] and not rob2_obj[rob2.object_move]:
         print(f'No objects to move')
         object_move = RobotPickUp.NONE
 
-    elif objects_found['rob1'][rob1.object_move] and not objects_found['rob2'][rob2.object_move]:
+    elif rob1_obj[rob1.object_move] and not rob2_obj[rob2.object_move]:
         object_move = RobotPickUp.R1
-    elif not objects_found['rob1'][rob1.object_move] and objects_found['rob2'][rob2.object_move]:
+    elif not rob1_obj[rob1.object_move] and rob2_obj[rob2.object_move]:
         object_move = RobotPickUp.R2
 
-    elif not objects_found['rob1'][rob1.object_store] and not objects_found['rob1'][rob1.object_store]:
-        if len(objects_found['rob1'][rob1.object_move]) > len(objects_found['rob2'][rob2.object_move]):
+    elif not rob1_obj[rob1.object_store] and not rob2_obj[rob2.object_store]:
+        if len(rob1_obj[rob1.object_move]) > len(rob2_obj[rob2.object_move]):
             object_move = RobotPickUp.R2
         else:
             object_move = RobotPickUp.R1
-    elif not objects_found['rob1'][rob1.object_store] and objects_found['rob1'][rob1.object_store]:
+    elif not rob1_obj[rob1.object_store] and rob2_obj[rob2.object_store]:
         object_move = RobotPickUp.R2
-    elif objects_found['rob1'][rob1.object_store] and not objects_found['rob1'][rob1.object_store]:
+    elif rob1_obj[rob1.object_store] and not rob2_obj[rob2.object_store]:
         object_move = RobotPickUp.R1
 
-    elif len(objects_found['rob1'][rob1.object_store]) < len(objects_found['rob2'][rob2.object_store]):
-        print(f'Rob 1 move object: {rob1.object_store.name} {len(objects_found["rob1"][rob1.object_store])}')
+    elif len(rob1_obj[rob1.object_store]) < len(rob2_obj[rob2.object_store]):
+        print(f'Rob 1 move object: {rob1.object_store.name} {len(rob1_obj[rob1.object_store])}')
         object_move = RobotPickUp.R1
-    elif len(objects_found['rob1'][rob1.object_store]) > len(objects_found['rob2'][rob2.object_store]):
-        print(f'Rob 2 move object: {rob2.object_store.name} {len(objects_found["rob2"][rob2.object_store])}')
+    elif len(rob1_obj[rob1.object_store]) > len(rob2_obj[rob2.object_store]):
+        print(f'Rob 2 move object: {rob2.object_store.name} {len(rob2_obj[rob2.object_store])}')
         object_move = RobotPickUp.R2
-    elif len(objects_found['rob1'][rob1.object_store]) == len(objects_found['rob2'][rob2.object_store]):
+    elif len(rob1_obj[rob1.object_store]) == len(rob2_obj[rob2.object_store]):
         object_move = RobotPickUp.R1
-
-    else:
-        print('kake')
 
     print(f'Robot to move over its objects are {object_move=}')
 
@@ -391,8 +374,8 @@ if __name__ == '__main__':
         pass
 
     try:
-        # main(move, [(rob1, camera1), (rob2, camera2)], conveyor_move, pre_run)
-        main(conveyor_func=conveyor_move)
+        main(move, [(rob1, camera1), (rob2, camera2)], conveyor_move, pre_run)
+        # main(conveyor_func=conveyor_move)
     except KeyboardInterrupt:
         Conveyor.stop()
 
