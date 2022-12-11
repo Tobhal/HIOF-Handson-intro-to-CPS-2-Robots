@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 
+
 @dataclass
 class Vec2:
     x: float

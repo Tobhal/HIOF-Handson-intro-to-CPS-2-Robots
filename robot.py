@@ -13,20 +13,37 @@ class Robot(urx.Robot):
     a, v = 0.5, 0.8
 
     def __init__(
-            self, host: str, name: str, object_store: Object,
+            self,
+            host: str,
+            name: str,
+            object_store: Object,
             cords: dict[str | Object, Pose | dict[str, Vec3] | dict[str, Vec3] | dict[str, Vec3]],
-            place_stack: Stack, conveyor_stack: Stack,
-            use_rt=False, use_simulation=False):
+            use_rt=True,
+            use_simulation=False
+    ):
         super().__init__(host, use_rt, use_simulation)
         self.name = name
         self.object_store = object_store
         self.object_move = Object.flip(object_store)
         self.cords = cords
-        self.place_stack = place_stack
-        self.conveyor_stack = conveyor_stack
         self.lock = Lock()
 
         self.status = Status.NOT_READY
+
+        self.place_stack = Stack(
+            name=f'{name}_PS',
+            coords=cords['object']['place'],
+            direction=Vec2(0.0, -1.0),
+            height=2,
+            obj=object_store
+        )
+        self.conveyor_stack = Stack(
+            name='r1_CS',
+            coords=cords['conveyor'].to_vec3(),
+            direction=Vec2(0.0, 1.0),
+            height=1,
+            obj=Object.flip(object_store)
+        )
 
         # activates gripper. only needed once per power cycle
         self.send_program(rq_activate())
@@ -64,6 +81,7 @@ class Robot(urx.Robot):
         with self.lock:
             self.send_program(rq_close())
         time.sleep(0.6)
+
         if end_over_object:
             self.move(location + self.cords[current_object]['over'])
 
@@ -83,7 +101,7 @@ class Robot(urx.Robot):
         if end_over_object:
             self.move(location + self.cords[current_object]['over'])
 
-    def move(self, location: Vec2 | Vec3 | Pose, move_wait=True):
+    def move(self, location: Vec2 | Vec3 | Pose):
         """
         Function for moving robot using moveJ.
         Acquires the thread lock for just the movement of the robot
@@ -98,16 +116,13 @@ class Robot(urx.Robot):
 
         with self.lock:
             # moves robot
-            self.movex("movej", location.to_tuple(), acc=self.a, vel=self.a, wait=move_wait, relative=False,
+            self.movex("movej", location.to_tuple(), acc=self.a, vel=self.a, wait=True, relative=False,
                        threshold=None)
-
-        if move_wait:
-            time.sleep(0.1)
 
         self.status = Status.READY
 
     def move_object(self, from_pos: Vec3 | Vec2, to_pos: Vec3 | Vec2,
-                    current_object, stop_at_idle=True, wait_at_idle=False,
+                    current_object, stop_at_idle=True,
                     center_before_move=False):
         """
         Move object from position to position. Leaves the robot above the object.
@@ -117,7 +132,7 @@ class Robot(urx.Robot):
         self.pick_object(from_pos.to_pose(), current_object, center_before_move)
 
         if stop_at_idle:
-            self.move(self.cords['idlePose'], wait_at_idle)
+            self.move(self.cords['idlePose'])
             time.sleep(0.5)
 
         self.place_object(to_pos.to_pose(), current_object)

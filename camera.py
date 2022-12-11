@@ -27,6 +27,7 @@ class Camera:
     """
     Camera object to interface with each robot's camera.
     """
+    out_of_range_dist = -0.445
 
     def __init__(
             self,
@@ -56,19 +57,10 @@ class Camera:
 
         # TODO: Actually ping the camera to see if it responds.
 
-    @staticmethod
-    def show_image(image: Image | list[Image], wait=True) -> Image:
-        if type(image) is list:
-            for img in image:
-                cv2.imshow('image', img)
-        else:
-            cv2.imshow('image', image)
-
-        if wait:
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
-
     def get_image(self) -> Image:
+        """
+        Gets a pre-cut image from the camera.
+        """
         req = urllib.request.urlopen(f'http://{self.ip}/LiveImage.jpg')
         arr = np.asarray(bytearray(req.read()), dtype=np.uint8)
         img = cv2.imdecode(arr, -1)
@@ -83,15 +75,25 @@ class Camera:
         return img
 
     def image_to_threshold(self, image: Image) -> Image:
+        """
+        Convert the camera image to a binary image.
+        Uses the `camera_threshold` to create a threshold between white and black
+        """
         return cv2.threshold(image, self.camera_threshold, 255, cv2.THRESH_BINARY)[1]
 
     def image_coords_to_robot_coords(self, x: int | float, y: int | float) -> tuple[float, float]:
+        """
+        Convert the coordinates returned form the camera to what the robots can use.
+        """
         x = ((x + self.offset.x) * self.invert.x) * self.offset_scale.x
         y = ((y + self.offset.y) * self.invert.y) * self.offset_scale.y
 
         return x, y
 
     def get_cubes(self) -> list[Vec2] | None:
+        """
+        Extract the position of each cube that the camera can see.
+        """
         img = self.get_image()
 
         threshold = self.image_to_threshold(img)
@@ -113,7 +115,8 @@ class Camera:
 
                 cube = Vec2(((y + (h / 2)) * self.invert.x) / 1000, ((x + (w / 2)) * self.invert.y) / 1000)
 
-                if cube.y < -0.445:
+                # Not add cubes that are out of range of the robot for the robot
+                if cube.y < self.out_of_range_dist:
                     print(f'Cube out of reach: {cube=}')
                     continue
 
@@ -122,14 +125,18 @@ class Camera:
         return cubes if len(cubes) > 0 else None
 
     def get_cylinders(self) -> list[Vec2] | None:
+        """
+        Extract the position of each cylinder that the camera can see.
+        """
         img = self.get_image()
         img = cv2.blur(img, (3, 3))
-        circles = cv2.HoughCircles(img, cv2.HOUGH_GRADIENT, 1, 20,
-                                   param1=50,
-                                   param2=30,
-                                   minRadius=1,
-                                   maxRadius=40
-                                   )
+        circles = cv2.HoughCircles(
+            img, cv2.HOUGH_GRADIENT, 1, 20,
+            param1=50,
+            param2=30,
+            minRadius=1,
+            maxRadius=40
+        )
 
         cylinders = []
 
@@ -143,7 +150,8 @@ class Camera:
 
                 cylinder = Vec2((b / 1000) * self.invert.x, (a / 1000) * self.invert.y)
 
-                if cylinder.y < -0.445:
+                # Not add cylinders that are out of range
+                if cylinder.y < self.out_of_range_dist:
                     print(f'Cylinder out of reach: {b}, {a}')
                     continue
 
@@ -152,29 +160,13 @@ class Camera:
         return cylinders if len(cylinders) > 0 else None
 
     def get_shapes(self) -> dict[Object, list[Vec2] | None]:
-        return {Object.CUBE: self.get_cubes(), Object.CYLINDER: self.get_cylinders()}
+        """
+        Get cubes and cylinders that the camera can detect. In a dict.
+        """
+        return {
+            Object.CUBE: self.get_cubes(),
+            Object.CYLINDER: self.get_cylinders()
+        }
 
     def get_object(self, _object: Object) -> list[Vec2] | None:
         return self.get_cubes() if _object == Object.CUBE else self.get_cylinders()
-
-    def switch_object(self, bank: int):
-        """
-        Switch what object the camera detects.
-
-        In theory, it changes what locator it uses. So `INT_1_0` is the first object locator in the camera. That means
-        that `INT_1_1` is the second object locator.
-
-        TODO: Change function to take channel as parameter to change to a specific object locator.
-        TODO: Make `switch_counter` be of type `Object` insteadof `int`.
-        """
-        res = urllib.request.urlopen(f'http://10.1.1.8/CmdChannel?sINT_1_{bank}')
-
-        if 'Ref bank index is not used.' in res.read().decode():
-            raise BankException('Change to empty bank. There are not that many object locators created, try a lower '
-                                'number. bang = {bank}')
-
-        time.sleep(3)
-
-        self.witch_object = self.objects[bank]
-
-        print(f"Camera {self.ip}: object switched to {self.witch_object}")

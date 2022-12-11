@@ -55,10 +55,16 @@ class Stack:
         return pos
 
     def reset(self):
+        """
+        Resets the stack to have no objects in.
+        """
         self.coords = deepcopy(self.original_coords)
         self.prev_positions = []
 
     def peak(self) -> Vec3:
+        """
+        Return the position of the last object in the stack.
+        """
         return self.prev_positions[-1]
 
     def __repr__(self):

@@ -89,6 +89,9 @@ class Conveyor:
 
     @staticmethod
     def start(direction: Direction):
+        """
+        Start to move the conveyor in the direction specified.
+        """
         Conveyor.status = Status.MOVING
 
         if direction == Direction.RIGHT:
