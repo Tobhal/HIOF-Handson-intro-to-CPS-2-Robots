@@ -344,7 +344,6 @@ if __name__ == '__main__':
 
     try:
         main(move, [(rob1, camera1), (rob2, camera2)], conveyor_move, pre_run)
-        # main(conveyor_func=conveyor_move)
     except KeyboardInterrupt:
         Conveyor.stop()
 

@@ -103,7 +103,6 @@ class Camera:
         cubes = []
 
         for cnt in contours:
-            x1, y1 = cnt[0][0]
             approx = cv2.approxPolyDP(cnt, 0.04 * cv2.arcLength(cnt, True), True)
             if len(approx) == 4:
                 x, y, w, h = cv2.boundingRect(cnt)
