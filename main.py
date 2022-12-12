@@ -9,7 +9,6 @@ from Gripper import *
 from camera import Camera
 from conveyor import Conveyor
 from robot import Robot
-from stack import Stack
 from util import Vec2, Vec3, Pose, Object, RobotPickUp, Status, Direction
 
 # TODO: Needs more tuning

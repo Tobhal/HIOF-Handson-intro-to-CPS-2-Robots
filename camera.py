@@ -27,7 +27,7 @@ class Camera:
     """
     Camera object to interface with each robot's camera.
     """
-    out_of_range_dist = -0.445
+    out_of_range_dist = -0.48
 
     def __init__(
             self,
@@ -81,14 +81,14 @@ class Camera:
         """
         return cv2.threshold(image, self.camera_threshold, 255, cv2.THRESH_BINARY)[1]
 
-    def image_coords_to_robot_coords(self, x: int | float, y: int | float) -> tuple[float, float]:
+    def image_coords_to_robot_coords(self, x: int | float, y: int | float) -> Vec2:
         """
         Convert the coordinates returned form the camera to what the robots can use.
         """
-        x = ((x + self.offset.x) * self.invert.x) * self.offset_scale.x
-        y = ((y + self.offset.y) * self.invert.y) * self.offset_scale.y
+        coords = Vec2(x, y)
+        coords = ((coords + self.offset) * self.invert) * self.offset_scale
 
-        return x, y
+        return Vec2(coords.y, coords.x)
 
     def get_cubes(self) -> list[Vec2] | None:
         """
@@ -111,9 +111,11 @@ class Camera:
                 if w < 25 or h < 25:
                     continue
 
-                x, y = self.image_coords_to_robot_coords(x, y)
+                w_h = Vec2(w, h)
 
-                cube = Vec2(((y + (h / 2)) * self.invert.x) / 1000, ((x + (w / 2)) * self.invert.y) / 1000)
+                cube = self.image_coords_to_robot_coords(x, y)
+
+                cube = ((cube + (w_h / 2)) * self.invert) / 1000
 
                 # Not add cubes that are out of range of the robot for the robot
                 if cube.y < self.out_of_range_dist:
@@ -146,9 +148,9 @@ class Camera:
             for pt in circles[0, :]:
                 a, b, r = pt[0], pt[1], pt[2]
 
-                a, b = self.image_coords_to_robot_coords(a, b)
+                cylinder = self.image_coords_to_robot_coords(a, b)
 
-                cylinder = Vec2((b / 1000) * self.invert.x, (a / 1000) * self.invert.y)
+                cylinder = (cylinder / 1000) * self.invert
 
                 # Not add cylinders that are out of range
                 if cylinder.y < self.out_of_range_dist:
@@ -170,3 +172,16 @@ class Camera:
 
     def get_object(self, _object: Object) -> list[Vec2] | None:
         return self.get_cubes() if _object == Object.CUBE else self.get_cylinders()
+
+
+if __name__ == '__main__':
+    cam = Camera(
+        ip='10.1.1.8',
+        offsets=Vec2(140, -180),
+        offset_scale=Vec2(1.2, 1.13),
+        invert=Vec2(1, -1),
+        camera_cut=(Vec2(0, 160), Vec2(540, 450)),
+        camera_threshold=25
+    )
+
+    print(f'{cam.get_cylinders()[0]}')

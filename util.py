@@ -20,13 +20,28 @@ class Vec2:
         return Pose(self.x, self.y, 0.0)
 
     def __add__(self, other):
-        return Vec2(self.x + other.x, self.y + other.y)
+        if type(other) is Vec2:
+            return Vec2(self.x + other.x, self.y + other.y)
+        else:
+            return Vec2(self.x + other, self.y + other)
 
     def __sub__(self, other):
-        return Vec2(self.x - other.x, self.y - other.y)
+        if type(other) is Vec2:
+            return Vec2(self.x - other.x, self.y - other.y)
+        else:
+            return Vec2(self.x - other, self.y - other)
 
     def __mul__(self, other):
-        return Vec2(self.x * other.x, self.y * other.y)
+        if type(other) is Vec2:
+            return Vec2(self.x * other.x, self.y * other.y)
+        else:
+            return Vec2(self.x * other, self.y * other)
+
+    def __truediv__(self, other):
+        if type(other) is Vec2:
+            return Vec2(self.x / other.x, self.y / other.y)
+        else:
+            return Vec2(self.x / other, self.y / other)
 
 
 @dataclass
@@ -47,20 +62,34 @@ class Vec3:
     def __add__(self, other):
         if type(other) is Vec2:
             return Vec3(self.x + other.x, self.y + other.y, self.z)
-        else:
+        elif type(other) is Vec3:
             return Vec3(self.x + other.x, self.y + other.y, self.z + other.z)
+        else:
+            return Vec3(self.x + other, self.y + other, self.z + other)
 
     def __sub__(self, other):
         if type(other) is Vec2:
             return Vec3(self.x - other.x, self.y - other.y, self.z)
-        else:
+        elif type(other) is Vec3:
             return Vec3(self.x - other.x, self.y - other.y, self.z - other.z)
+        else:
+            return Vec3(self.x - other, self.y - other, self.z - other)
 
     def __mul__(self, other):
         if type(other) is Vec2:
             return Vec3(self.x * other.x, self.y * other.y, self.z)
-        else:
+        elif type(other) is Vec3:
             return Vec3(self.x * other.x, self.y * other.y, self.z * other.z)
+        else:
+            return Vec3(self.x * other, self.y * other, self.z * other)
+
+    def __truediv__(self, other):
+        if type(other) is Vec2:
+            return Vec3(self.x / other.x, self.y / other.y, self.z)
+        elif type(other) is Vec3:
+            return Vec3(self.x / other.x, self.y / other.y, self.z / other.z)
+        else:
+            return Vec3(self.x / other, self.y / other, self.z / other)
 
 
 @dataclass
